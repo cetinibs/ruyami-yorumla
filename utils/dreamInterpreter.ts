@@ -29,14 +29,7 @@ Lütfen şu başlıkları kullan:
 3. Psikolojik Analiz
 4. Tavsiyeler
 
-Her başlık altında en az 3 madde olsun. Cevabını ** işaretleri arasında ver, örnek:
-**1. Genel Yorum**
-- Madde 1
-- Madde 2
-- Madde 3
-
-**2. Semboller ve Anlamları**
-...`;
+Her başlık altında en az 3 madde olsun.`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
@@ -54,22 +47,15 @@ Her başlık altında en az 3 madde olsun. Cevabını ** işaretleri arasında v
 
       // Rüyada geçen sembolleri bul
       const dreamTextLower = dreamText.toLowerCase();
-      const matchedSymbols = Object.keys(this.dreamSymbols).filter(symbol => 
-        dreamTextLower.includes(symbol.toLowerCase())
-      );
+      const symbolsFound = Object.keys(this.dreamSymbols)
+        .filter(symbol => dreamTextLower.includes(symbol))
+        .map(symbol => `- "${symbol}": ${this.dreamSymbols[symbol]}`)
+        .join('\n');
 
-      // Genel yorumu hazırla
-      let interpretation = aiInterpretation + '\n\n';
-
-      // Bulunan sembollerin yorumlarını ekle
-      if (matchedSymbols.length > 0) {
-        interpretation += '\n**Rüyanızda Tespit Edilen Özel Semboller**\n';
-        matchedSymbols.forEach(symbol => {
-          interpretation += `- "${symbol}": ${this.dreamSymbols[symbol]}\n`;
-        });
-      }
-
-      return interpretation;
+      // Sonucu hazırla
+      return symbolsFound 
+        ? `${aiInterpretation}\n\n**Rüyanızda Tespit Edilen Özel Semboller**\n${symbolsFound}`
+        : aiInterpretation;
     } catch (error) {
       console.error('Yorumlama hatası:', error);
       throw new Error('Rüya yorumlanırken bir hata oluştu.');
