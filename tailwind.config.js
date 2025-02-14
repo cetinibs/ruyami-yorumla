@@ -6,11 +6,15 @@ module.exports = {
   ],
   theme: {
     extend: {
-      colors: {
-        primary: "#4F46E5",
-        secondary: "#6B7280",
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 }
