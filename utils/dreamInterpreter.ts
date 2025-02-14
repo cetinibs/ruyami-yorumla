@@ -53,17 +53,18 @@ Her başlık altında en az 3 madde olsun. Cevabını ** işaretleri arasında v
       const aiInterpretation = await this.analyzeWithAI(dreamText);
 
       // Rüyada geçen sembolleri bul
-      const foundSymbols = Object.keys(this.dreamSymbols).filter(symbol => 
-        dreamText.toLowerCase().includes(symbol.toLowerCase())
+      const dreamTextLower = dreamText.toLowerCase();
+      const matchedSymbols = Object.keys(this.dreamSymbols).filter(symbol => 
+        dreamTextLower.includes(symbol.toLowerCase())
       );
 
       // Genel yorumu hazırla
       let interpretation = aiInterpretation + '\n\n';
 
       // Bulunan sembollerin yorumlarını ekle
-      if (foundSymbols.length > 0) {
+      if (matchedSymbols.length > 0) {
         interpretation += '\n**Rüyanızda Tespit Edilen Özel Semboller**\n';
-        foundSymbols.forEach(symbol => {
+        matchedSymbols.forEach(symbol => {
           interpretation += `- "${symbol}": ${this.dreamSymbols[symbol]}\n`;
         });
       }
