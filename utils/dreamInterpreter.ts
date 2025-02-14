@@ -37,23 +37,17 @@ class DreamInterpreter {
       
       // Rüya metnindeki sembolleri analiz et
       const words = dreamText.toLowerCase().split(/\s+/);
-      const foundSymbols = new Set<string>();
-      
-      for (const word of words) {
-        if (this.dreamSymbols[word]) {
-          foundSymbols.add(word);
-        }
-      }
+      const foundSymbols = words.filter(word => this.dreamSymbols[word]);
 
-      if (foundSymbols.size === 0) {
+      if (foundSymbols.length === 0) {
         return 'Bu rüyada belirgin semboller bulamadım, ancak her rüya kişisel deneyimleriniz ve duygularınızla ilişkilidir. ' +
                'Rüyanızı gördüğünüz dönemdeki duygularınızı ve yaşadıklarınızı düşünerek anlamlandırabilirsiniz.';
       }
 
       // Bulunan sembollerin yorumlarını ekle
-      for (const symbol of foundSymbols) {
+      foundSymbols.forEach(symbol => {
         interpretation += `"${symbol}": ${this.dreamSymbols[symbol]}\n\n`;
-      }
+      });
 
       interpretation += '\nGenel Yorum: ';
       interpretation += 'Bu semboller bir araya geldiğinde, rüyanız muhtemelen ' +
