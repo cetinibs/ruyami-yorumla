@@ -6,6 +6,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  console.log('API request received:', { method: req.method, body: req.body });
+
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -25,14 +27,17 @@ export default async function handler(
 
   try {
     const { dream } = req.body;
+    console.log('Dream text received:', dream);
 
     if (!dream || typeof dream !== 'string' || dream.length < 3) {
+      console.log('Invalid dream text:', { dream, type: typeof dream, length: dream?.length });
       return res.status(400).json({
         error: 'Geçersiz rüya metni',
         details: 'Lütfen en az 3 karakter içeren bir rüya metni girin'
       });
     }
 
+    console.log('Getting Gemini model...');
     const model = getGeminiModel();
     
     const prompt = `Sen deneyimli bir rüya yorumcususun. Rüyaları psikolojik, spiritüel ve sembolik açıdan detaylı olarak analiz ediyorsun.
@@ -62,9 +67,12 @@ Yanıtını tam olarak aşağıdaki formatta ver:
 
 Rüya: ${dream}`;
 
+    console.log('Calling Gemini API...');
     const result = await model.generateContent(prompt);
+    console.log('Gemini API response received');
     const response = await result.response;
     const interpretation = response.text();
+    console.log('Interpretation generated:', interpretation.substring(0, 100) + '...');
 
     return res.status(200).json({ interpretation });
   } catch (error) {

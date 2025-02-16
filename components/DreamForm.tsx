@@ -17,11 +17,13 @@ export default function DreamForm({ stats }: { stats: Stats }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submitting dream:', dream);
     setError('');
     setInterpretation('');
     setIsLoading(true);
 
     try {
+      console.log('Sending interpretation request...');
       const response = await fetch('/api/interpret', {
         method: 'POST',
         headers: {
@@ -30,14 +32,31 @@ export default function DreamForm({ stats }: { stats: Stats }) {
         body: JSON.stringify({ dream }),
       });
 
+      console.log('Response status:', response.status);
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Rüya yorumlanırken bir hata oluştu');
+        let errorMessage = 'Rüya yorumlanırken bir hata oluştu';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error('Error parsing error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      setInterpretation(data.interpretation);
+      try {
+        const data = JSON.parse(responseText);
+        console.log('Interpretation received:', data.interpretation?.substring(0, 100) + '...');
+        setInterpretation(data.interpretation);
+      } catch (e) {
+        console.error('Error parsing success response:', e);
+        throw new Error('Geçersiz API yanıtı');
+      }
     } catch (err) {
+      console.error('Submit error:', err);
       setError(err instanceof Error ? err.message : 'Rüya yorumlanırken bir hata oluştu');
     } finally {
       setIsLoading(false);
@@ -91,7 +110,7 @@ export default function DreamForm({ stats }: { stats: Stats }) {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-4 bg-green-500 bg-opacity-20 border border-green-500 rounded-lg text-green-200"
+              className="p-4 bg-green-500 bg-opacity-20 border border-green-500 rounded-lg text-green-200 whitespace-pre-wrap"
             >
               {interpretation}
             </motion.div>
