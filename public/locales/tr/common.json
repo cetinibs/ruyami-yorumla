@@ -1,0 +1,11 @@
+{
+  "title": "Rüya Yorumlayıcı",
+  "subtitle": "Rüyalarınızın potansiyelini keşfedin!",
+  "placeholder": "Lütfen rüyanızı anlatın: Ne gördünüz? Hangi nesneler ve semboller bulunuyordu? Nasıl hissettiniz?",
+  "button": "Gönder",
+  "loading": "Yorumlanıyor...",
+  "stats": {
+    "dreams": "Yorumlanan Rüya",
+    "users": "Toplam Kullanıcı"
+  }
+}

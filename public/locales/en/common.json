@@ -1,0 +1,11 @@
+{
+  "title": "Dream Interpreter",
+  "subtitle": "Discover the potential of your dreams!",
+  "placeholder": "Please describe your dream: What did you see? What objects and symbols were present? How did you feel?",
+  "button": "Submit",
+  "loading": "Interpreting...",
+  "stats": {
+    "dreams": "Interpreted Dreams",
+    "users": "Total Users"
+  }
+}
