@@ -1,46 +1,34 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'İsim gereklidir'],
+    trim: true,
+    minlength: [2, 'İsim en az 2 karakter olmalıdır']
+  },
   email: {
     type: String,
     required: [true, 'Email gereklidir'],
     unique: true,
     trim: true,
     lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, 'Geçerli bir email adresi giriniz']
   },
   password: {
     type: String,
     required: [true, 'Şifre gereklidir'],
-    minlength: [6, 'Şifre en az 6 karakter olmalıdır'],
-  },
-  name: {
-    type: String,
-    required: [true, 'İsim gereklidir'],
-    trim: true,
+    minlength: [6, 'Şifre en az 6 karakter olmalıdır']
   },
   createdAt: {
     type: Date,
-    default: Date.now,
-  },
-});
-
-// Şifreyi hashleme
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error: any) {
-    next(error);
+    default: Date.now
   }
 });
 
-// Şifre kontrolü
-userSchema.methods.comparePassword = async function(candidatePassword: string) {
-  return bcrypt.compare(candidatePassword, this.password);
-};
+// Email için index oluştur
+userSchema.index({ email: 1 }, { unique: true });
 
-export default mongoose.models.User || mongoose.model('User', userSchema);
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+
+export default User;

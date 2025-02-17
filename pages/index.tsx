@@ -45,20 +45,34 @@ export default function Home() {
           'Authorization': `Bearer ${token}`,
         },
       });
-      if (response.ok) {
-        const data = await response.json();
+
+      let responseText;
+      try {
+        responseText = await response.text(); // Önce text olarak oku
+        const data = JSON.parse(responseText); // Sonra JSON parse et
+
+        if (!response.ok) {
+          throw new Error(data?.error || 'Rüyalar yüklenirken bir hata oluştu');
+        }
+
         setDreams(data);
+      } catch (parseError) {
+        console.error('Response parsing error:', { responseText, error: parseError });
+        throw new Error(responseText || 'Sunucu yanıtı işlenirken bir hata oluştu');
       }
-    } catch (error) {
-      console.error('Error fetching dreams:', error);
+    } catch (error: any) {
+      console.error('Fetch dreams error:', error);
+      setError(error.message || 'Rüyalar yüklenirken bir hata oluştu');
     }
   };
 
   const handleAuth = async (e: React.FormEvent, isLogin: boolean) => {
     e.preventDefault();
+    setIsLoading(true);
     setError('');
 
     try {
+      console.log('Starting auth process:', isLogin ? 'login' : 'register');
       const response = await fetch(`/api/auth/${isLogin ? 'login' : 'register'}`, {
         method: 'POST',
         headers: {
@@ -67,26 +81,96 @@ export default function Home() {
         body: JSON.stringify(isLogin ? { email, password } : { email, password, name }),
       });
 
-      const data = await response.json();
+      console.log('Response status:', response.status);
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        throw new Error('Sunucu yanıtı işlenirken bir hata oluştu');
+      }
 
       if (!response.ok) {
-        throw new Error(data.error);
+        throw new Error(data?.error || data?.details || 'İşlem başarısız oldu');
       }
 
       if (isLogin) {
+        if (!data?.token || !data?.user) {
+          throw new Error('Geçersiz giriş yanıtı');
+        }
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         setUser(data.user);
         fetchDreams(data.token);
       } else {
         setShowLogin(true);
+        setEmail('');
+        setPassword('');
+        setName('');
+      }
+    } catch (error: any) {
+      console.error('Auth error:', error);
+      setError(error.message || 'İşlem sırasında bir hata oluştu');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setInterpretation('');
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
-      setEmail('');
-      setPassword('');
-      setName('');
+      console.log('Sending interpretation request...');
+      const response = await fetch('/api/interpret', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ dream }),
+      });
+
+      console.log('Response status:', response.status);
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        throw new Error('Sunucu yanıtı işlenirken bir hata oluştu');
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || data?.details || 'Bir hata oluştu');
+      }
+
+      if (!data?.interpretation) {
+        throw new Error('Geçersiz yanıt formatı');
+      }
+
+      setInterpretation(data.interpretation);
+      if (token) {
+        fetchDreams(token);
+      }
     } catch (error: any) {
-      setError(error.message);
+      console.error('Submit error:', error);
+      setError(error.message || 'Rüya yorumlanırken bir hata oluştu');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -95,49 +179,6 @@ export default function Home() {
     localStorage.removeItem('user');
     setUser(null);
     setDreams([]);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    setInterpretation('');
-    
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      // Eğer kullanıcı giriş yapmışsa token ekle
-      const token = localStorage.getItem('token');
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch('/api/interpret', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ dream }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.details || data.error || 'Bir hata oluştu');
-      }
-      
-      setInterpretation(data.interpretation);
-
-      // Giriş yapmış kullanıcı için rüya listesini güncelle
-      if (token) {
-        fetchDreams(token);
-      }
-    } catch (error: any) {
-      console.error('Error:', error);
-      setError(error.message || 'Rüya yorumlanırken bir hata oluştu');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   return (

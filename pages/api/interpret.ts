@@ -72,9 +72,31 @@ Rüya: ${dream}`;
     console.log('Gemini API response received');
     const response = await result.response;
     const interpretation = response.text();
+    
+    // Validate that we got a proper response
+    if (!interpretation || typeof interpretation !== 'string') {
+      console.error('Invalid response from Gemini:', interpretation);
+      return res.status(500).json({
+        error: 'Geçersiz API yanıtı',
+        details: 'AI modelinden geçerli bir yanıt alınamadı'
+      });
+    }
+    
     console.log('Interpretation generated:', interpretation.substring(0, 100) + '...');
 
-    return res.status(200).json({ interpretation });
+    // Ensure we're returning valid JSON
+    try {
+      return res.status(200).json({ 
+        success: true,
+        interpretation 
+      });
+    } catch (jsonError) {
+      console.error('Error stringifying response:', jsonError);
+      return res.status(500).json({
+        error: 'Yanıt işlenirken hata oluştu',
+        details: 'Yanıt JSON formatına dönüştürülemedi'
+      });
+    }
   } catch (error) {
     console.error('Error in dream interpretation:', error);
     return res.status(500).json({

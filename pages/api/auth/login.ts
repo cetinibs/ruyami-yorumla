@@ -14,14 +14,18 @@ export default async function handler(
   }
 
   try {
-    await connectDB();
-
     const { email, password } = req.body;
 
     // Validate input
     if (!email || !password) {
       return res.status(400).json({ error: 'Email ve şifre gereklidir' });
     }
+
+    // Attempt to connect to MongoDB with a timeout of 5 seconds
+    await Promise.race([
+      connectDB(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DB connection timeout')), 5000))
+    ]);
 
     // Find user
     const user = await User.findOne({ email });
@@ -49,12 +53,9 @@ export default async function handler(
       name: user.name,
     };
 
-    res.status(200).json({
-      token,
-      user: userResponse,
-    });
+    return res.status(200).json({ token, user: userResponse });
   } catch (error: any) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Giriş işlemi başarısız oldu' });
+    return res.status(500).json({ error: 'Giriş işlemi başarısız oldu', details: error.message || 'Bilinmeyen bir hata oluştu' });
   }
 }
