@@ -6,7 +6,13 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  console.log('API request received:', { method: req.method, body: req.body });
+  // Log incoming request
+  console.log('API request received:', {
+    method: req.method,
+    headers: req.headers,
+    body: req.body,
+    url: req.url
+  });
 
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -16,92 +22,155 @@ export default async function handler(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
+  
+  // Set content type to JSON
+  res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ 
+      error: 'Method not allowed',
+      allowedMethods: ['POST']
+    });
   }
 
   try {
     const { dream } = req.body;
-    console.log('Dream text received:', dream);
+    console.log('Dream text received:', {
+      dream,
+      type: typeof dream,
+      length: dream?.length
+    });
 
     if (!dream || typeof dream !== 'string' || dream.length < 3) {
       console.log('Invalid dream text:', { dream, type: typeof dream, length: dream?.length });
       return res.status(400).json({
         error: 'Geçersiz rüya metni',
-        details: 'Lütfen en az 3 karakter içeren bir rüya metni girin'
+        details: 'Lütfen en az 3 karakter içeren bir rüya metni girin',
+        received: {
+          dream,
+          type: typeof dream,
+          length: dream?.length
+        }
+      });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY is missing');
+      return res.status(500).json({
+        error: 'Sunucu yapılandırma hatası',
+        details: 'API anahtarı eksik veya geçersiz'
       });
     }
 
     console.log('Getting Gemini model...');
     const model = getGeminiModel();
     
-    const prompt = `Sen deneyimli bir rüya yorumcususun. Rüyaları psikolojik, spiritüel ve sembolik açıdan detaylı olarak analiz ediyorsun.
-Şimdi sana vereceğim rüyayı çok detaylı bir şekilde yorumla. Her bölümde en az 3-4 cümle kullan ve derinlemesine analiz yap.
-Yanıtını tam olarak aşağıdaki formatta ver:
+    while (retryCount < maxRetries) {
+      try {
+        // Prompt'u parçalara ayırarak gönderelim
+        const parts = [
+          { text: 'Sen bir rüya yorumcususun. Aşağıdaki rüyayı analiz et ve şu formatta yanıt ver:\n\n' },
+          { text: '**GENEL ANLAMI:**\n[Rüyanın ana mesajı ve genel yorumu]\n\n' },
+          { text: '**SEMBOLLER VE ANLAMLARI:**\n- [Sembol 1]: [Anlamı]\n- [Sembol 2]: [Anlamı]\n\n' },
+          { text: '**PSİKOLOJİK YORUM:**\n[Psikolojik analiz]\n\n' },
+          { text: '**ÖNERİLER:**\n- [Öneri 1]\n- [Öneri 2]\n\n' },
+          { text: `Rüya: ${dream}` }
+        ];
 
-**1. GENEL ANLAMI:**
-[Rüyanın genel anlamını, ana mesajını ve rüya sahibine vermek istediği mesajı detaylı olarak açıkla. Rüyanın genel atmosferini ve duygusal tonunu da belirt. En az 4-5 cümle kullan.]
+        console.log('Generating content with parts...');
+        const result = await model.generateContent(parts);
+        console.log('Gemini API response received');
+        
+        if (!result.response) {
+          throw new Error('No response from Gemini API');
+        }
 
-**2. SEMBOLLER VE ANLAMLARI:**
-- [Sembol 1]: [Bu sembolün genel anlamını, kültürel ve psikolojik yorumunu, ve rüyadaki özel bağlamını detaylıca açıkla]
-- [Sembol 2]: [Her sembol için en az 2-3 cümlelik detaylı açıklama ver]
-- [Sembol 3]: [Sembollerin birbiriyle olan ilişkisini de açıkla]
+        const response = result.response;
+        console.log('Gemini response object:', {
+          type: typeof response,
+          hasText: typeof response.text === 'function'
+        });
+        
+        const interpretation = response.text();
+        console.log('Interpretation received:', {
+          type: typeof interpretation,
+          length: interpretation?.length,
+          preview: interpretation?.substring(0, 100)
+        });
 
-**3. PSİKOLOJİK YORUM:**
-[Rüyanın psikolojik boyutunu derinlemesine analiz et. Bilinçaltı mesajları, bastırılmış duygular, korkular veya arzuları açıkla. Jung ve Freud gibi psikologların teorilerine de değin. En az 4-5 cümle kullan.]
+        if (!interpretation) {
+          throw new Error('Empty response from Gemini');
+        }
 
-**4. HAYATINIZA YANSIMALARI:**
-- [Yansıma 1]: [Her yansımayı en az 2-3 cümle ile detaylı açıkla]
-- [Yansıma 2]: [Rüyanın gerçek hayattaki olası yansımalarını ve etkilerini detaylandır]
-- [Yansıma 3]: [Kişisel gelişim ve kendini tanıma açısından öneriler ver]
+        // Yanıtı doğrula
+        if (!interpretation.includes('GENEL ANLAMI') || 
+            !interpretation.includes('SEMBOLLER VE ANLAMLARI') || 
+            !interpretation.includes('PSİKOLOJİK YORUM') || 
+            !interpretation.includes('ÖNERİLER')) {
+          throw new Error('Invalid response format from Gemini');
+        }
 
-**5. DİKKAT EDİLMESİ GEREKENLER:**
-- [Öneri 1]: [Her öneriyi detaylı açıkla ve pratik tavsiyeler ver]
-- [Öneri 2]: [Rüyanın uyarı niteliğindeki mesajlarını detaylandır]
-- [Öneri 3]: [Gelecekte dikkat edilmesi gereken noktaları belirt]
+        const jsonResponse = {
+          success: true,
+          interpretation
+        };
 
-Rüya: ${dream}`;
-
-    console.log('Calling Gemini API...');
-    const result = await model.generateContent(prompt);
-    console.log('Gemini API response received');
-    const response = await result.response;
-    const interpretation = response.text();
-    
-    // Validate that we got a proper response
-    if (!interpretation || typeof interpretation !== 'string') {
-      console.error('Invalid response from Gemini:', interpretation);
-      return res.status(500).json({
-        error: 'Geçersiz API yanıtı',
-        details: 'AI modelinden geçerli bir yanıt alınamadı'
-      });
+        console.log('Sending successful response');
+        return res.status(200).json(jsonResponse);
+        
+      } catch (retryError: any) {
+        lastError = retryError;
+        retryCount++;
+        
+        console.error('API call attempt failed:', {
+          attempt: retryCount,
+          error: retryError?.message,
+          dream: dream.substring(0, 100)
+        });
+        
+        if (retryCount < maxRetries) {
+          console.log(`Retry attempt ${retryCount} of ${maxRetries}...`);
+          // Exponential backoff: 1s, 2s, 4s
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount - 1) * 1000));
+        }
+      }
     }
-    
-    console.log('Interpretation generated:', interpretation.substring(0, 100) + '...');
 
-    // Ensure we're returning valid JSON
-    try {
-      return res.status(200).json({ 
-        success: true,
-        interpretation 
-      });
-    } catch (jsonError) {
-      console.error('Error stringifying response:', jsonError);
-      return res.status(500).json({
-        error: 'Yanıt işlenirken hata oluştu',
-        details: 'Yanıt JSON formatına dönüştürülemedi'
-      });
-    }
-  } catch (error) {
-    console.error('Error in dream interpretation:', error);
+    // Tüm denemeler başarısız olduysa
+    console.error('All retry attempts failed:', {
+      error: lastError,
+      message: lastError?.message,
+      retryCount
+    });
+    
     return res.status(500).json({
-      error: 'Rüya yorumlanırken bir hata oluştu',
-      details: error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu'
+      error: 'AI modeli hatası',
+      details: 'Birkaç denemeye rağmen AI modelinden yanıt alınamadı. Lütfen daha sonra tekrar deneyin.'
+    });
+
+  } catch (aiError: any) {
+    console.error('Gemini API error:', {
+      error: aiError,
+      message: aiError?.message,
+      stack: aiError?.stack
+    });
+    return res.status(500).json({
+      error: 'AI modeli hatası',
+      details: aiError?.message || 'Rüya yorumlanırken bir hata oluştu'
     });
   }
+} catch (error: any) {
+  console.error('Error in dream interpretation:', {
+    error,
+    message: error?.message,
+    stack: error?.stack
+  });
+  return res.status(500).json({
+    error: 'Sunucu hatası',
+    details: error?.message || 'Beklenmeyen bir hata oluştu'
+  });
 }

@@ -89,17 +89,17 @@ export default function Home() {
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        throw new Error('Sunucu yanıtı işlenirken bir hata oluştu');
+        console.error('JSON parse error:', { responseText, error: parseError });
+        throw new Error('Sunucu yanıtı geçerli bir JSON formatında değil. Lütfen tekrar deneyin.');
       }
 
       if (!response.ok) {
-        throw new Error(data?.error || data?.details || 'İşlem başarısız oldu');
+        throw new Error(data?.error || data?.details || `${isLogin ? 'Giriş' : 'Kayıt'} işlemi başarısız oldu`);
       }
 
       if (isLogin) {
         if (!data?.token || !data?.user) {
-          throw new Error('Geçersiz giriş yanıtı');
+          throw new Error('Geçersiz giriş yanıtı: Token veya kullanıcı bilgisi eksik');
         }
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
@@ -112,8 +112,8 @@ export default function Home() {
         setName('');
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
-      setError(error.message || 'İşlem sırasında bir hata oluştu');
+      console.error('Auth error:', { error, isLogin });
+      setError(error.message || `${isLogin ? 'Giriş' : 'Kayıt'} işlemi sırasında bir hata oluştu`);
     } finally {
       setIsLoading(false);
     }
@@ -128,6 +128,7 @@ export default function Home() {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       };
 
       const token = localStorage.getItem('token');
@@ -135,39 +136,67 @@ export default function Home() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      console.log('Sending interpretation request...');
+      // Log request details
+      console.log('Request details:', {
+        url: '/api/interpret',
+        method: 'POST',
+        headers,
+        body: { dream }
+      });
+
       const response = await fetch('/api/interpret', {
         method: 'POST',
         headers,
         body: JSON.stringify({ dream }),
       });
 
-      console.log('Response status:', response.status);
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
+      // Log response details
+      console.log('Response details:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
 
+      // First try to get the raw response text
+      const responseText = await response.text();
+      console.log('Raw response text:', responseText);
+
+      // Then try to parse it as JSON
       let data;
       try {
         data = JSON.parse(responseText);
+        console.log('Parsed JSON data:', data);
       } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        throw new Error('Sunucu yanıtı işlenirken bir hata oluştu');
+        console.error('JSON parse error:', {
+          error: parseError,
+          responseText,
+          responseLength: responseText.length,
+          firstChars: responseText.substring(0, 100)
+        });
+        throw new Error('Sunucu yanıtı JSON formatında değil. Ham yanıt: ' + responseText.substring(0, 100));
       }
 
       if (!response.ok) {
-        throw new Error(data?.error || data?.details || 'Bir hata oluştu');
+        throw new Error(data?.error || data?.details || 'Rüya yorumlanırken bir hata oluştu');
       }
 
       if (!data?.interpretation) {
-        throw new Error('Geçersiz yanıt formatı');
+        console.error('Missing interpretation in response:', data);
+        throw new Error('Yorumlama sonucu alınamadı');
       }
 
       setInterpretation(data.interpretation);
+      
+      // Başarılı yanıt aldıktan sonra rüyaları yenile
       if (token) {
         fetchDreams(token);
       }
     } catch (error: any) {
-      console.error('Submit error:', error);
+      console.error('Interpretation error:', {
+        error,
+        message: error.message,
+        stack: error.stack
+      });
       setError(error.message || 'Rüya yorumlanırken bir hata oluştu');
     } finally {
       setIsLoading(false);
