@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import connectDB from '@config/mongodb';
-import User from '@models/user';
+import connectDB from '../../../config/mongodb.ts';
+import User from '../../../models/user.ts';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
