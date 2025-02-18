@@ -69,6 +69,9 @@ export default async function handler(
     console.log('Getting Gemini model...');
     const model = getGeminiModel();
     
+    const maxRetries = 3;
+    let retryCount = 0;
+    
     while (retryCount < maxRetries) {
       try {
         // Prompt'u parçalara ayırarak gönderelim
@@ -98,79 +101,45 @@ export default async function handler(
         const interpretation = response.text();
         console.log('Interpretation received:', {
           type: typeof interpretation,
-          length: interpretation?.length,
-          preview: interpretation?.substring(0, 100)
+          length: interpretation?.length
         });
 
-        if (!interpretation) {
-          throw new Error('Empty response from Gemini');
-        }
-
-        // Yanıtı doğrula
-        if (!interpretation.includes('GENEL ANLAMI') || 
-            !interpretation.includes('SEMBOLLER VE ANLAMLARI') || 
-            !interpretation.includes('PSİKOLOJİK YORUM') || 
-            !interpretation.includes('ÖNERİLER')) {
-          throw new Error('Invalid response format from Gemini');
-        }
-
-        const jsonResponse = {
+        // Return successful response
+        return res.status(200).json({
           success: true,
           interpretation
-        };
+        });
 
-        console.log('Sending successful response');
-        return res.status(200).json(jsonResponse);
-        
-      } catch (retryError: any) {
-        lastError = retryError;
-        retryCount++;
-        
-        console.error('API call attempt failed:', {
-          attempt: retryCount,
-          error: retryError?.message,
-          dream: dream.substring(0, 100)
+      } catch (aiError: any) {
+        console.error('Gemini API error on attempt ${retryCount + 1}:', {
+          error: aiError,
+          message: aiError?.message,
+          stack: aiError?.stack
         });
         
-        if (retryCount < maxRetries) {
-          console.log(`Retry attempt ${retryCount} of ${maxRetries}...`);
-          // Exponential backoff: 1s, 2s, 4s
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount - 1) * 1000));
+        retryCount++;
+        
+        if (retryCount >= maxRetries) {
+          return res.status(500).json({
+            error: 'AI modeli hatası',
+            details: 'Birkaç denemeye rağmen AI modelinden yanıt alınamadı. Lütfen daha sonra tekrar deneyin.'
+          });
         }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
       }
     }
-
-    // Tüm denemeler başarısız olduysa
-    console.error('All retry attempts failed:', {
-      error: lastError,
-      message: lastError?.message,
-      retryCount
-    });
     
-    return res.status(500).json({
-      error: 'AI modeli hatası',
-      details: 'Birkaç denemeye rağmen AI modelinden yanıt alınamadı. Lütfen daha sonra tekrar deneyin.'
-    });
-
-  } catch (aiError: any) {
-    console.error('Gemini API error:', {
-      error: aiError,
-      message: aiError?.message,
-      stack: aiError?.stack
+  } catch (error: any) {
+    console.error('Error in dream interpretation:', {
+      error,
+      message: error?.message,
+      stack: error?.stack
     });
     return res.status(500).json({
-      error: 'AI modeli hatası',
-      details: aiError?.message || 'Rüya yorumlanırken bir hata oluştu'
+      error: 'Sunucu hatası',
+      details: error?.message || 'Beklenmeyen bir hata oluştu'
     });
   }
-} catch (error: any) {
-  console.error('Error in dream interpretation:', {
-    error,
-    message: error?.message,
-    stack: error?.stack
-  });
-  return res.status(500).json({
-    error: 'Sunucu hatası',
-    details: error?.message || 'Beklenmeyen bir hata oluştu'
-  });
 }
