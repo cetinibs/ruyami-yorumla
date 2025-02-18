@@ -6,15 +6,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Log incoming request
-  console.log('API request received:', {
-    method: req.method,
-    headers: req.headers,
-    body: req.body,
-    url: req.url
-  });
-
-  // CORS headers
+  // Set CORS headers first
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -22,19 +14,21 @@ export default async function handler(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
-  
-  // Set content type to JSON
-  res.setHeader('Content-Type', 'application/json');
 
+  // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
 
+  // Only allow POST method
   if (req.method !== 'POST') {
-    return res.status(405).json({ 
+    res.status(405).json({ 
+      success: false,
       error: 'Method not allowed',
-      allowedMethods: ['POST']
+      details: 'Only POST method is allowed'
     });
+    return;
   }
 
   try {
@@ -47,23 +41,22 @@ export default async function handler(
 
     if (!dream || typeof dream !== 'string' || dream.length < 3) {
       console.log('Invalid dream text:', { dream, type: typeof dream, length: dream?.length });
-      return res.status(400).json({
+      res.status(400).json({
+        success: false,
         error: 'Geçersiz rüya metni',
-        details: 'Lütfen en az 3 karakter içeren bir rüya metni girin',
-        received: {
-          dream,
-          type: typeof dream,
-          length: dream?.length
-        }
+        details: 'Lütfen en az 3 karakter içeren bir rüya metni girin'
       });
+      return;
     }
 
     if (!process.env.GEMINI_API_KEY) {
       console.error('GEMINI_API_KEY is missing');
-      return res.status(500).json({
+      res.status(500).json({
+        success: false,
         error: 'Sunucu yapılandırma hatası',
         details: 'API anahtarı eksik veya geçersiz'
       });
+      return;
     }
 
     console.log('Getting Gemini model...');
@@ -71,10 +64,10 @@ export default async function handler(
     
     const maxRetries = 3;
     let retryCount = 0;
+    let lastError = null;
     
     while (retryCount < maxRetries) {
       try {
-        // Prompt'u parçalara ayırarak gönderelim
         const parts = [
           { text: 'Sen bir rüya yorumcususun. Aşağıdaki rüyayı analiz et ve şu formatta yanıt ver:\n\n' },
           { text: '**GENEL ANLAMI:**\n[Rüyanın ana mesajı ve genel yorumu]\n\n' },
@@ -84,7 +77,7 @@ export default async function handler(
           { text: `Rüya: ${dream}` }
         ];
 
-        console.log('Generating content with parts...');
+        console.log('Generating content...');
         const result = await model.generateContent(parts);
         console.log('Gemini API response received');
         
@@ -93,37 +86,40 @@ export default async function handler(
         }
 
         const response = result.response;
-        console.log('Gemini response object:', {
-          type: typeof response,
-          hasText: typeof response.text === 'function'
-        });
-        
         const interpretation = response.text();
+        
+        if (!interpretation) {
+          throw new Error('Empty response from Gemini API');
+        }
+
         console.log('Interpretation received:', {
           type: typeof interpretation,
           length: interpretation?.length
         });
 
-        // Return successful response
-        return res.status(200).json({
+        res.status(200).json({
           success: true,
           interpretation
         });
+        return;
 
       } catch (aiError: any) {
-        console.error('Gemini API error on attempt ${retryCount + 1}:', {
+        console.error(`Gemini API error on attempt ${retryCount + 1}:`, {
           error: aiError,
           message: aiError?.message,
           stack: aiError?.stack
         });
         
+        lastError = aiError;
         retryCount++;
         
         if (retryCount >= maxRetries) {
-          return res.status(500).json({
+          res.status(500).json({
+            success: false,
             error: 'AI modeli hatası',
             details: 'Birkaç denemeye rağmen AI modelinden yanıt alınamadı. Lütfen daha sonra tekrar deneyin.'
           });
+          return;
         }
         
         // Wait before retrying
@@ -137,7 +133,9 @@ export default async function handler(
       message: error?.message,
       stack: error?.stack
     });
-    return res.status(500).json({
+    
+    res.status(500).json({
+      success: false,
       error: 'Sunucu hatası',
       details: error?.message || 'Beklenmeyen bir hata oluştu'
     });
