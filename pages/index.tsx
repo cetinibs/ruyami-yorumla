@@ -43,29 +43,43 @@ export default function Home() {
 
   const fetchDreams = async (token: string) => {
     try {
+      console.log('Fetching dreams with token:', token);
       const response = await fetch('/api/dreams', {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
-      let responseText;
+      console.log('Dreams response status:', response.status);
+      const responseText = await response.text();
+      console.log('Dreams response text:', responseText);
+
+      let data;
       try {
-        responseText = await response.text(); // Önce text olarak oku
-        const data = JSON.parse(responseText); // Sonra JSON parse et
-
-        if (!response.ok) {
-          throw new Error(data?.error || 'Rüyalar yüklenirken bir hata oluştu');
-        }
-
-        setDreams(data);
+        data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('Response parsing error:', { responseText, error: parseError });
-        throw new Error(responseText || 'Sunucu yanıtı işlenirken bir hata oluştu');
+        console.error('Dreams response parsing error:', { responseText, error: parseError });
+        throw new Error('Rüyalar yüklenirken bir hata oluştu: Geçersiz sunucu yanıtı');
       }
+
+      if (!response.ok) {
+        console.error('Dreams fetch error:', data);
+        throw new Error(data?.error || data?.details || 'Rüyalar yüklenirken bir hata oluştu');
+      }
+
+      if (!Array.isArray(data)) {
+        console.error('Invalid dreams data format:', data);
+        throw new Error('Rüyalar geçersiz formatta');
+      }
+
+      console.log('Dreams fetched successfully:', data.length);
+      setDreams(data);
     } catch (error: any) {
       console.error('Fetch dreams error:', error);
       setError(error.message || 'Rüyalar yüklenirken bir hata oluştu');
+      // Rüyalar yüklenemese bile uygulamanın çalışmaya devam etmesini sağla
+      setDreams([]);
     }
   };
 
@@ -103,12 +117,24 @@ export default function Home() {
 
       if (isLogin) {
         if (!data?.token || !data?.user) {
+          console.error('Invalid login response:', data);
           throw new Error('Geçersiz giriş yanıtı: Token veya kullanıcı bilgisi eksik');
         }
+
+        console.log('Login successful, setting token and user data');
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         setUser(data.user);
-        fetchDreams(data.token);
+        
+        // Giriş başarılı olduğunda dreams'i yükle
+        try {
+          await fetchDreams(data.token);
+        } catch (fetchError) {
+          console.error('Error fetching dreams after login:', fetchError);
+          // Dreams yüklenemese bile login başarılı sayılır
+        }
+
+        setShowLogin(null); // Modal'ı kapat
       } else {
         // Kayıt başarılı olduğunda
         setSuccessMessage('Kayıt işlemi başarılı! Şimdi giriş yapabilirsiniz.');
