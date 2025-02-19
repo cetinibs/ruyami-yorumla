@@ -45,40 +45,45 @@ export default function Home() {
     try {
       console.log('Fetching dreams with token:', token);
       const response = await fetch('/api/dreams', {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      console.log('Dreams response status:', response.status);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Dreams fetch failed:', response.status, errorText);
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || errorJson.details || 'Failed to fetch dreams');
+        } catch (e) {
+          throw new Error(errorText || 'Failed to fetch dreams');
+        }
+      }
+
       const responseText = await response.text();
-      console.log('Dreams response text:', responseText);
+      console.log('Dreams response:', responseText);
 
       let data;
       try {
         data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Dreams response parsing error:', { responseText, error: parseError });
-        throw new Error('Rüyalar yüklenirken bir hata oluştu: Geçersiz sunucu yanıtı');
-      }
-
-      if (!response.ok) {
-        console.error('Dreams fetch error:', data);
-        throw new Error(data?.error || data?.details || 'Rüyalar yüklenirken bir hata oluştu');
+      } catch (e) {
+        console.error('Failed to parse dreams response:', e);
+        throw new Error('Invalid response format');
       }
 
       if (!Array.isArray(data)) {
         console.error('Invalid dreams data format:', data);
-        throw new Error('Rüyalar geçersiz formatta');
+        throw new Error('Invalid dreams data format');
       }
 
       console.log('Dreams fetched successfully:', data.length);
       setDreams(data);
     } catch (error: any) {
       console.error('Fetch dreams error:', error);
-      setError(error.message || 'Rüyalar yüklenirken bir hata oluştu');
-      // Rüyalar yüklenemese bile uygulamanın çalışmaya devam etmesini sağla
+      setError(error.message || 'Failed to fetch dreams');
       setDreams([]);
     }
   };
@@ -99,20 +104,26 @@ export default function Home() {
         body: JSON.stringify(isLogin ? { email, password } : { email, password, name }),
       });
 
-      console.log('Response status:', response.status);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Auth failed:', response.status, errorText);
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || errorJson.details || `${isLogin ? 'Giriş' : 'Kayıt'} işlemi başarısız oldu`);
+        } catch (e) {
+          throw new Error(errorText || `${isLogin ? 'Giriş' : 'Kayıt'} işlemi başarısız oldu`);
+        }
+      }
+
       const responseText = await response.text();
-      console.log('Response text:', responseText);
+      console.log('Auth response:', responseText);
 
       let data;
       try {
         data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('JSON parse error:', { responseText, error: parseError });
-        throw new Error('Sunucu yanıtı geçerli bir JSON formatında değil. Lütfen tekrar deneyin.');
-      }
-
-      if (!response.ok) {
-        throw new Error(data?.error || data?.details || `${isLogin ? 'Giriş' : 'Kayıt'} işlemi başarısız oldu`);
+      } catch (e) {
+        console.error('Failed to parse auth response:', e);
+        throw new Error('Invalid response format');
       }
 
       if (isLogin) {
@@ -129,12 +140,12 @@ export default function Home() {
         // Giriş başarılı olduğunda dreams'i yükle
         try {
           await fetchDreams(data.token);
+          setShowLogin(null); // Modal'ı sadece dreams yüklendikten sonra kapat
         } catch (fetchError) {
           console.error('Error fetching dreams after login:', fetchError);
-          // Dreams yüklenemese bile login başarılı sayılır
+          // Dreams yüklenemese bile kullanıcıya bilgi ver
+          setError('Giriş başarılı fakat rüyalar yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
         }
-
-        setShowLogin(null); // Modal'ı kapat
       } else {
         // Kayıt başarılı olduğunda
         setSuccessMessage('Kayıt işlemi başarılı! Şimdi giriş yapabilirsiniz.');
@@ -150,7 +161,7 @@ export default function Home() {
         setName('');
       }
     } catch (error: any) {
-      console.error('Auth error:', { error, isLogin });
+      console.error('Auth error:', error);
       setError(error.message || `${isLogin ? 'Giriş' : 'Kayıt'} işlemi sırasında bir hata oluştu`);
     } finally {
       setIsLoading(false);
