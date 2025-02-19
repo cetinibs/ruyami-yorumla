@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import bcrypt from 'bcryptjs';
-import connectDB from './config/mongodb';
-import User from './models/user';
+import { supabase } from '../../../lib/supabase';
 
 export default async function handler(
   req: NextApiRequest,
@@ -72,84 +70,32 @@ export default async function handler(
       return;
     }
 
-    // Connect to MongoDB
-    console.log('Connecting to MongoDB...');
-    try {
-      await Promise.race([
-        connectDB(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('MongoDB connection timeout')), 10000)
-        )
-      ]);
-    } catch (dbError: any) {
-      console.error('MongoDB connection error:', dbError);
-      res.status(503).json({
-        success: false,
-        error: 'Veritabanı bağlantı hatası',
-        details: 'Veritabanına bağlanılamadı. Lütfen daha sonra tekrar deneyiniz.'
-      });
-      return;
-    }
-
-    // Check if user exists
-    console.log('Checking existing user...');
-    const existingUser = await User.findOne({ email }).lean();
-    if (existingUser) {
-      res.status(400).json({
-        success: false,
-        error: 'Kullanıcı zaten mevcut',
-        details: 'Bu email adresi ile kayıtlı bir kullanıcı bulunmaktadır'
-      });
-      return;
-    }
-
-    // Hash password
-    console.log('Hashing password...');
-    let hashedPassword;
-    try {
-      const salt = await bcrypt.genSalt(10);
-      hashedPassword = await bcrypt.hash(password, salt);
-    } catch (hashError) {
-      console.error('Password hashing error:', hashError);
-      res.status(500).json({
-        success: false,
-        error: 'Şifre işleme hatası',
-        details: 'Kayıt işlemi sırasında bir hata oluştu'
-      });
-      return;
-    }
-
-    // Create user
-    console.log('Creating new user...');
-    let user;
-    try {
-      user = await User.create({
-        name,
-        email,
-        password: hashedPassword,
-        createdAt: new Date()
-      });
-    } catch (createError: any) {
-      console.error('User creation error:', createError);
-      if (createError.code === 11000) {
-        res.status(400).json({
-          success: false,
-          error: 'Kullanıcı zaten mevcut',
-          details: 'Bu email adresi ile kayıtlı bir kullanıcı bulunmaktadır'
-        });
-        return;
+    // Register user with Supabase
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+        }
       }
-      throw createError;
+    });
+
+    if (authError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Kayıt hatası',
+        details: authError.message
+      });
     }
 
-    console.log('User created successfully');
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Kayıt başarılı',
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email
+        id: authData.user.id,
+        name: authData.user.user_metadata.name,
+        email: authData.user.email
       }
     });
 
