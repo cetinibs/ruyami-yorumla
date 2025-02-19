@@ -70,24 +70,12 @@ export default async function handler(
       res.status(400).json({
         success: false,
         error: 'Geçersiz email',
-        details: 'Lütfen geçerli bir email adresi giriniz'
+        details: 'Lütfen geçerli bir email adresi girin'
       });
       return;
     }
 
     console.log('Attempting Supabase signup...');
-    
-    // Test Supabase connection
-    const { data: testData, error: testError } = await supabase.auth.getSession();
-    if (testError) {
-      console.error('Supabase connection test failed:', testError);
-      return res.status(500).json({
-        success: false,
-        error: 'Supabase bağlantı hatası',
-        details: testError.message
-      });
-    }
-    console.log('Supabase connection test successful');
 
     // Register user with Supabase
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -102,6 +90,25 @@ export default async function handler(
 
     if (authError) {
       console.error('Supabase signup error:', authError);
+      
+      // Handle rate limiting error
+      if (authError.message.includes('security purposes') || authError.message.includes('30 seconds')) {
+        return res.status(429).json({
+          success: false,
+          error: 'Çok fazla deneme',
+          details: 'Lütfen 30 saniye bekleyip tekrar deneyin'
+        });
+      }
+
+      // Handle email already registered
+      if (authError.message.includes('already registered')) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email zaten kayıtlı',
+          details: 'Bu email adresi ile daha önce kayıt olunmuş'
+        });
+      }
+
       return res.status(400).json({
         success: false,
         error: 'Kayıt hatası',
@@ -109,14 +116,23 @@ export default async function handler(
       });
     }
 
-    console.log('User registered successfully:', authData.user?.id);
+    if (!authData.user) {
+      console.error('No user data returned from Supabase');
+      return res.status(500).json({
+        success: false,
+        error: 'Kayıt hatası',
+        details: 'Kullanıcı kaydı oluşturulamadı'
+      });
+    }
+
+    console.log('User registered successfully:', authData.user.id);
     return res.status(201).json({
       success: true,
       message: 'Kayıt başarılı',
       user: {
-        id: authData.user?.id,
-        name: authData.user?.user_metadata.name,
-        email: authData.user?.email
+        id: authData.user.id,
+        name: authData.user.user_metadata.name,
+        email: authData.user.email
       }
     });
 
