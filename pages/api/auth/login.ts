@@ -1,17 +1,29 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import connectDB from './config/mongodb';
-import User from './models/user';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+import { supabase } from '../../../lib/supabase';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({
+      success: false,
+      error: 'Method not allowed'
+    });
   }
 
   try {
@@ -19,44 +31,69 @@ export default async function handler(
 
     // Validate input
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email ve şifre gereklidir' });
+      return res.status(400).json({
+        success: false,
+        error: 'Email ve şifre gereklidir'
+      });
     }
 
-    // Attempt to connect to MongoDB with a timeout of 5 seconds
-    await Promise.race([
-      connectDB(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('DB connection timeout')), 5000))
-    ]);
+    console.log('Attempting login for email:', email);
 
-    // Find user
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ error: 'Geçersiz email veya şifre' });
+    // Attempt to sign in with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error('Login error:', error);
+      
+      // Handle specific error cases
+      if (error.message.includes('Invalid login credentials')) {
+        return res.status(401).json({
+          success: false,
+          error: 'Geçersiz email veya şifre'
+        });
+      }
+
+      if (error.message.includes('Email not confirmed')) {
+        return res.status(401).json({
+          success: false,
+          error: 'Email adresinizi onaylamanız gerekiyor'
+        });
+      }
+
+      return res.status(401).json({
+        success: false,
+        error: error.message
+      });
     }
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Geçersiz email veya şifre' });
+    if (!data.user || !data.session) {
+      return res.status(500).json({
+        success: false,
+        error: 'Giriş işlemi başarısız oldu'
+      });
     }
 
-    // Create token
-    const token = jwt.sign(
-      { userId: user._id },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    console.log('Login successful for user:', data.user.id);
 
-    // Remove password from response
-    const userResponse = {
-      _id: user._id,
-      email: user.email,
-      name: user.name,
-    };
+    // Return user data and session token
+    return res.status(200).json({
+      success: true,
+      token: data.session.access_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.user_metadata.name
+      }
+    });
 
-    return res.status(200).json({ token, user: userResponse });
-  } catch (error: any) {
-    console.error('Login error:', error);
-    return res.status(500).json({ error: 'Giriş işlemi başarısız oldu', details: error.message || 'Bilinmeyen bir hata oluştu' });
+  } catch (error) {
+    console.error('Unexpected login error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Giriş işlemi sırasında bir hata oluştu'
+    });
   }
 }
