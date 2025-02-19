@@ -21,12 +21,15 @@ export default function Home() {
   const [interpretation, setInterpretation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [dreams, setDreams] = useState<Dream[]>([]);
   const [showLogin, setShowLogin] = useState<boolean | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [registeredPassword, setRegisteredPassword] = useState('');
 
   useEffect(() => {
     // Check if user is logged in
@@ -70,6 +73,7 @@ export default function Home() {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       console.log('Starting auth process:', isLogin ? 'login' : 'register');
@@ -106,9 +110,17 @@ export default function Home() {
         setUser(data.user);
         fetchDreams(data.token);
       } else {
+        // Kayıt başarılı olduğunda
+        setSuccessMessage('Kayıt işlemi başarılı! Şimdi giriş yapabilirsiniz.');
+        setRegisteredEmail(email);
+        setRegisteredPassword(password);
         setShowLogin(true);
-        setEmail('');
-        setPassword('');
+        
+        // Giriş formunu önceden doldur
+        setEmail(email);
+        setPassword(password);
+        
+        // Diğer form alanlarını temizle
         setName('');
       }
     } catch (error: any) {
@@ -396,12 +408,22 @@ export default function Home() {
                   {showLogin ? 'Giriş Yap' : 'Üye Ol'}
                 </h2>
                 <button
-                  onClick={() => setShowLogin(null)}
+                  onClick={() => {
+                    setShowLogin(null);
+                    setError('');
+                    setSuccessMessage('');
+                  }}
                   className="text-gray-500 hover:text-gray-700"
                 >
                   ✕
                 </button>
               </div>
+
+              {successMessage && (
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+                  <p className="text-green-600">{successMessage}</p>
+                </div>
+              )}
 
               <form onSubmit={(e) => handleAuth(e, showLogin)} className="space-y-4">
                 {!showLogin && (
