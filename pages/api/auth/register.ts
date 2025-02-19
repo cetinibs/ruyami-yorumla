@@ -32,9 +32,11 @@ export default async function handler(
 
   try {
     const { name, email, password } = req.body;
+    console.log('Registration attempt for email:', email);
 
     // Input validation
     if (!name || !email || !password) {
+      console.log('Missing required fields:', { name: !!name, email: !!email, password: !!password });
       res.status(400).json({
         success: false,
         error: 'Eksik bilgi',
@@ -44,6 +46,7 @@ export default async function handler(
     }
 
     if (password.length < 6) {
+      console.log('Password too short');
       res.status(400).json({
         success: false,
         error: 'Geçersiz şifre',
@@ -53,6 +56,7 @@ export default async function handler(
     }
 
     if (name.length < 2) {
+      console.log('Name too short');
       res.status(400).json({
         success: false,
         error: 'Geçersiz isim',
@@ -62,6 +66,7 @@ export default async function handler(
     }
 
     if (!/^\S+@\S+\.\S+$/.test(email)) {
+      console.log('Invalid email');
       res.status(400).json({
         success: false,
         error: 'Geçersiz email',
@@ -69,6 +74,20 @@ export default async function handler(
       });
       return;
     }
+
+    console.log('Attempting Supabase signup...');
+    
+    // Test Supabase connection
+    const { data: testData, error: testError } = await supabase.auth.getSession();
+    if (testError) {
+      console.error('Supabase connection test failed:', testError);
+      return res.status(500).json({
+        success: false,
+        error: 'Supabase bağlantı hatası',
+        details: testError.message
+      });
+    }
+    console.log('Supabase connection test successful');
 
     // Register user with Supabase
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -82,6 +101,7 @@ export default async function handler(
     });
 
     if (authError) {
+      console.error('Supabase signup error:', authError);
       return res.status(400).json({
         success: false,
         error: 'Kayıt hatası',
@@ -89,33 +109,23 @@ export default async function handler(
       });
     }
 
+    console.log('User registered successfully:', authData.user?.id);
     return res.status(201).json({
       success: true,
       message: 'Kayıt başarılı',
       user: {
-        id: authData.user.id,
-        name: authData.user.user_metadata.name,
-        email: authData.user.email
+        id: authData.user?.id,
+        name: authData.user?.user_metadata.name,
+        email: authData.user?.email
       }
     });
 
-  } catch (error: any) {
-    console.error('Registration error:', error);
-
-    // Validation error
-    if (error.name === 'ValidationError') {
-      res.status(400).json({
-        success: false,
-        error: 'Doğrulama hatası',
-        details: Object.values(error.errors).map((err: any) => err.message).join(', ')
-      });
-      return;
-    }
-
-    res.status(500).json({
+  } catch (error) {
+    console.error('Unexpected registration error:', error);
+    return res.status(500).json({
       success: false,
       error: 'Sunucu hatası',
-      details: process.env.NODE_ENV === 'development' ? error.message : 'Kayıt işlemi başarısız oldu'
+      details: error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu'
     });
   }
 }
