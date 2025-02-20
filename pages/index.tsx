@@ -53,14 +53,11 @@ export default function Home() {
   const fetchDreams = async (token: string) => {
     try {
       // Use relative URL for API requests
-      const apiUrl = '/api/dreams';
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch('/api/dreams', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
         },
       });
 
@@ -184,20 +181,36 @@ export default function Home() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      // Use relative URL for API requests
       const response = await fetch('/api/interpret', {
         method: 'POST',
         headers,
         body: JSON.stringify({ dream: dream.trim() }),
       });
 
-      const data = await response.json();
-
+      // First check if response is ok
       if (!response.ok) {
-        throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu');
+        const errorData = await response.json().catch(() => null);
+        console.error('API error response:', errorData);
+        throw new Error(
+          errorData?.error || 
+          `API error (${response.status}): ${response.statusText}`
+        );
       }
 
-      if (!data.interpretation) {
-        throw new Error('Rüya yorumu alınamadı');
+      // Then try to parse the response
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        throw new Error('Sunucu yanıtını okuma hatası');
+      }
+
+      // Validate response data
+      if (!data || typeof data.interpretation !== 'string') {
+        console.error('Invalid response data:', data);
+        throw new Error('Geçersiz API yanıtı');
       }
 
       setInterpretation(data.interpretation);
@@ -210,7 +223,10 @@ export default function Home() {
 
     } catch (error: any) {
       console.error('Dream interpretation error:', error);
-      setError(error.message || 'Bir hata oluştu');
+      setError(
+        error.message || 
+        'Rüya yorumlama sırasında bir hata oluştu. Lütfen tekrar deneyin.'
+      );
     } finally {
       setIsLoading(false);
     }
