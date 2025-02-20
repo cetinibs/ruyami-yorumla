@@ -171,85 +171,56 @@ export default function Home() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleDreamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     setInterpretation('');
 
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      };
-
+      // Get token from localStorage
       const token = localStorage.getItem('token');
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (!token) {
+        setError('Lütfen önce giriş yapın');
+        setIsLoading(false);
+        return;
       }
-
-      // Log request details
-      console.log('Request details:', {
-        url: '/api/interpret',
-        method: 'POST',
-        headers,
-        body: { dream }
-      });
 
       const response = await fetch('/api/interpret', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ dream }),
       });
 
-      // Log response details
-      console.log('Response details:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
-      // First try to get the raw response text
-      const responseText = await response.text();
-      console.log('Raw response text:', responseText);
-
-      // Then try to parse it as JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        console.log('Parsed JSON data:', data);
-      } catch (parseError) {
-        console.error('JSON parse error:', {
-          error: parseError,
-          responseText,
-          responseLength: responseText.length,
-          firstChars: responseText.substring(0, 100)
-        });
-        throw new Error('Sunucu yanıtı JSON formatında değil. Ham yanıt: ' + responseText.substring(0, 100));
-      }
-
       if (!response.ok) {
-        throw new Error(data?.error || data?.details || 'Rüya yorumlanırken bir hata oluştu');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Rüya yorumlama sırasında bir hata oluştu');
       }
 
-      if (!data?.interpretation) {
-        console.error('Missing interpretation in response:', data);
-        throw new Error('Yorumlama sonucu alınamadı');
-      }
-
+      const data = await response.json();
       setInterpretation(data.interpretation);
       
-      // Başarılı yanıt aldıktan sonra rüyaları yenile
-      if (token) {
-        fetchDreams(token);
-      }
-    } catch (error: any) {
-      console.error('Interpretation error:', {
-        error,
-        message: error.message,
-        stack: error.stack
+      // Rüyayı veritabanına kaydet
+      await fetch('/api/dreams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          dreamText: dream,
+          interpretation: data.interpretation
+        }),
       });
-      setError(error.message || 'Rüya yorumlanırken bir hata oluştu');
+
+      // Rüya listesini güncelle
+      fetchDreams(token);
+    } catch (error: any) {
+      console.error('Dream interpretation error:', error);
+      setError(error.message || 'Bir hata oluştu');
     } finally {
       setIsLoading(false);
     }
@@ -372,7 +343,7 @@ export default function Home() {
           {/* Ana İçerik */}
           <div className={`${user ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
             <div className="dream-card">
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleDreamSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="dream" className="block text-lg font-medium text-gray-700 mb-2">
                     Rüyanızı Anlatın
