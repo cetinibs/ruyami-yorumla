@@ -39,28 +39,13 @@ export const config = {
   },
 };
 
-// Function to sanitize and truncate interpretation
-const sanitizeInterpretation = (text: string, maxLength: number = 2000): string => {
-  if (!text) return '';
-  
-  // Remove any non-printable characters
-  let sanitized = text.replace(/[^\x20-\x7E\xA0-\xFF\u0100-\u017F\u0180-\u024F\u0300-\u036F\u1E00-\u1EFF]/g, '');
-  
-  // Replace multiple spaces with single space
-  sanitized = sanitized.replace(/\s+/g, ' ');
-  
-  // Truncate if too long
-  if (sanitized.length > maxLength) {
-    const truncated = sanitized.substring(0, maxLength);
-    const lastPeriod = truncated.lastIndexOf('.');
-    if (lastPeriod > maxLength * 0.8) {
-      return truncated.substring(0, lastPeriod + 1);
-    }
-    return truncated + '...';
-  }
-  
-  return sanitized.trim();
-};
+// Helper function to sanitize interpretation text
+function sanitizeInterpretation(text: string): string {
+  return text
+    .replace(/[^\w\s.,!?-]/g, '') // Remove special characters except basic punctuation
+    .replace(/\s+/g, ' ')         // Replace multiple spaces with single space
+    .trim();                      // Remove leading/trailing whitespace
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -72,7 +57,7 @@ export default async function handler(
     body: req.body
   });
 
-  // Set CORS headers first
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -84,49 +69,44 @@ export default async function handler(
 
   // Handle preflight request
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).json({});
   }
 
   // Only allow POST requests
   if (req.method !== 'POST') {
     console.log('Method not allowed:', req.method);
-    res.status(405).json({
+    return res.status(405).json({
       success: false,
       error: 'Method not allowed'
     });
-    return;
   }
 
   try {
     // Validate request body
     if (!req.body || typeof req.body !== 'object') {
       console.log('Invalid request body:', req.body);
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: 'Invalid request body'
       });
-      return;
     }
 
     const { dream } = req.body;
 
     if (!dream || typeof dream !== 'string' || dream.trim().length === 0) {
       console.log('Invalid dream text:', dream);
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: 'Dream text is required'
       });
-      return;
     }
 
     if (dream.trim().length > 1000) {
       console.log('Dream text too long:', dream.length);
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: 'Dream text is too long (max 1000 characters)'
       });
-      return;
     }
 
     // Create prompt
@@ -174,47 +154,32 @@ export default async function handler(
 
     } catch (openaiError: any) {
       console.error('OpenAI API error:', openaiError);
-      res.status(503).json({
+      return res.status(503).json({
         success: false,
         error: 'Rüya yorumlama servisi şu anda meşgul. Lütfen birkaç dakika sonra tekrar deneyin.'
       });
-      return;
     }
 
     // Validate OpenAI response
     if (!completion.data?.choices?.[0]?.message?.content) {
       console.error('Invalid OpenAI response:', completion.data);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: 'Invalid response from OpenAI'
       });
-      return;
     }
 
     const interpretation = completion.data.choices[0].message.content.trim();
 
-    // Sanitize and truncate interpretation
+    // Sanitize interpretation
     const sanitizedInterpretation = sanitizeInterpretation(interpretation);
 
-    // Prepare the response
-    const response = {
-      success: true,
-      interpretation: sanitizedInterpretation
-    };
-
-    console.log('Sending response:', response);
-
-    // Send the response
-    res.status(200).json(response);
-
-    // Then try to save to database if user is authenticated
-    const authHeader = req.headers.authorization;
-    if (authHeader) {
+    // Save to database if user is authenticated
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token) {
       try {
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-        
-        if (!authError && user) {
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (user) {
           await supabase
             .from('dreams')
             .insert([
@@ -225,45 +190,25 @@ export default async function handler(
               }
             ]);
         }
-      } catch (dbError) {
-        console.error('Database operation error:', dbError);
+      } catch (error) {
+        console.error('Database error:', error);
+        // Continue even if database save fails
       }
     }
 
+    // Always return a valid JSON response
+    return res.status(200).json({
+      success: true,
+      interpretation: sanitizedInterpretation
+    });
+
   } catch (error: any) {
-    // Log the full error
     console.error('API error:', error);
-    console.error('API error response:', error.response?.data);
-
-    // Handle OpenAI API errors
-    if (error.response?.status === 429) {
-      res.status(429).json({
-        success: false,
-        error: 'Rate limit exceeded. Please try again later.'
-      });
-    }
-
-    if (error.response?.status === 401) {
-      res.status(500).json({
-        success: false,
-        error: 'OpenAI API authentication failed'
-      });
-    }
-
-    // Handle network errors
-    if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
-      res.status(503).json({
-        success: false,
-        error: 'Service temporarily unavailable'
-      });
-    }
-
-    // Return generic error
-    if (!res.headersSent) {
-      res.status(500).json({
-        success: false,
-        error: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.'
-      });
-    }
+    
+    // Ensure we always return a valid JSON response
+    return res.status(500).json({
+      success: false,
+      error: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.'
+    });
   }
 }
