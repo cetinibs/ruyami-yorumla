@@ -19,26 +19,29 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+type ResponseData = {
+  success: boolean;
+  interpretation?: string;
+  error?: string;
+};
+
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<ResponseData>
 ) {
-  console.log('API called with method:', req.method);
-
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
-
+  // Handle preflight request
   if (req.method === 'OPTIONS') {
-    res.status(200).json({ success: true });
-    return;
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    );
+    return res.status(200).json({ success: true });
   }
 
+  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({
       success: false,
@@ -47,19 +50,24 @@ export default async function handler(
   }
 
   try {
-    console.log('Request body:', req.body);
+    // Validate request body
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request body'
+      });
+    }
+
     const { dream } = req.body;
 
     if (!dream || typeof dream !== 'string' || dream.trim().length === 0) {
-      console.log('Invalid dream text:', { dream, type: typeof dream });
       return res.status(400).json({
         success: false,
         error: 'Dream text is required'
       });
     }
 
-    // OpenAI API isteği
-    console.log('Sending request to OpenAI...');
+    // OpenAI API request
     const prompt = `Aşağıdaki rüyayı Türkçe olarak detaylı bir şekilde yorumla. 
     Rüya içeriği: "${dream.trim()}"
     
@@ -69,8 +77,9 @@ export default async function handler(
     3. Semboller ve Anlamları
     4. Öneriler`;
 
+    let completion;
     try {
-      const completion = await openai.createChatCompletion({
+      completion = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: [
           {
@@ -85,24 +94,31 @@ export default async function handler(
         temperature: 0.7,
         max_tokens: 1000,
       });
+    } catch (openaiError: any) {
+      console.error('OpenAI API error:', openaiError);
+      return res.status(500).json({
+        success: false,
+        error: 'OpenAI API hatası: ' + (openaiError.message || 'Bilinmeyen hata')
+      });
+    }
 
-      console.log('OpenAI response received');
-      const interpretation = completion.data.choices[0]?.message?.content;
+    const interpretation = completion.data.choices[0]?.message?.content;
 
-      if (!interpretation) {
-        console.error('No interpretation received from OpenAI');
-        throw new Error('OpenAI API yanıt vermedi');
-      }
+    if (!interpretation) {
+      return res.status(500).json({
+        success: false,
+        error: 'OpenAI API yanıt vermedi'
+      });
+    }
 
-      // Eğer kullanıcı giriş yapmışsa rüyayı kaydet
-      const authHeader = req.headers.authorization;
-      if (authHeader) {
-        console.log('Auth header found, saving dream...');
+    // Save dream if user is authenticated
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      try {
         const token = authHeader.replace('Bearer ', '');
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         
         if (!authError && user) {
-          console.log('Saving dream for user:', user.id);
           const { error: dbError } = await supabase
             .from('dreams')
             .insert([
@@ -117,27 +133,23 @@ export default async function handler(
             console.error('Database error:', dbError);
           }
         }
+      } catch (dbError) {
+        console.error('Database operation error:', dbError);
+        // Continue with the response even if database operation fails
       }
-
-      console.log('Sending successful response');
-      return res.status(200).json({
-        success: true,
-        interpretation
-      });
-
-    } catch (openaiError: any) {
-      console.error('OpenAI API error:', openaiError);
-      return res.status(500).json({
-        success: false,
-        error: 'OpenAI API hatası: ' + (openaiError.message || 'Bilinmeyen hata')
-      });
     }
+
+    // Return successful response
+    return res.status(200).json({
+      success: true,
+      interpretation
+    });
 
   } catch (error: any) {
     console.error('Unexpected error:', error);
     return res.status(500).json({
       success: false,
-      error: error.message || 'An unexpected error occurred'
+      error: 'Beklenmeyen bir hata oluştu'
     });
   }
 }

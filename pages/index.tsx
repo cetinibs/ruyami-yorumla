@@ -184,27 +184,27 @@ export default function Home() {
     setInterpretation('');
 
     try {
-      // Get token if user is logged in
       const token = localStorage.getItem('token');
-      const headers: Record<string, string> = {
+      const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
 
-      // Add authorization header if token exists
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      console.log('Sending dream interpretation request...');
       const response = await fetch('/api/interpret', {
         method: 'POST',
         headers,
         body: JSON.stringify({ dream: dream.trim() }),
       });
 
-      console.log('Response status:', response.status);
-      const data = await response.json();
-      console.log('Response data:', data);
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error('Sunucu yanıtı işlenemedi');
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu');
@@ -216,9 +216,8 @@ export default function Home() {
 
       setInterpretation(data.interpretation);
       
-      // Eğer kullanıcı giriş yapmışsa rüyaları güncelle
       if (token) {
-        fetchDreams(token);
+        await fetchDreams(token);
       }
     } catch (error: any) {
       console.error('Dream interpretation error:', error);
