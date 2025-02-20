@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import { useTheme } from '../contexts/ThemeContext';
+import { FaSun, FaMoon } from 'react-icons/fa';
 
 type Dream = {
   _id: string;
@@ -17,6 +19,7 @@ type User = {
 
 export default function Home() {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const [dream, setDream] = useState('');
   const [interpretation, setInterpretation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -260,7 +263,15 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+    <div className={`min-h-screen bg-${theme === 'light' ? 'white' : 'gray-900'}`}>
+      <button
+        onClick={toggleTheme}
+        className="theme-toggle"
+        aria-label="Toggle theme"
+      >
+        {theme === 'light' ? <FaMoon /> : <FaSun />}
+      </button>
+
       <Head>
         <title>Rüyamı Yorumla - AI Destekli Rüya Yorumlama</title>
         <meta name="description" content="Yapay zeka destekli rüya yorumlama uygulaması" />
@@ -394,41 +405,26 @@ export default function Home() {
               )}
 
               {interpretation && (
-                <div className="mt-8">
-                  <h2 className="text-2xl font-semibold text-gray-800 mb-6">Rüya Yorumu</h2>
-                  <div className="space-y-6">
-                    {interpretation.split('**').filter(Boolean).map((section, index) => {
-                      const [title, ...content] = section.split('\n');
-                      if (title && content.length > 0) {
-                        return (
-                          <div key={index} className="glass-effect rounded-xl p-6">
-                            <h3 className="text-xl font-semibold text-indigo-600 mb-4">
-                              {title.replace(/^\d+\.\s*/, '')}
-                            </h3>
-                            <div className="prose max-w-none space-y-3">
-                              {content.filter(line => line.trim()).map((line, idx) => {
-                                if (line.trim().startsWith('-')) {
-                                  return (
-                                    <div key={idx} className="flex items-start space-x-3 ml-4">
-                                      <div className="w-2 h-2 rounded-full bg-indigo-600 mt-2"></div>
-                                      <p className="text-gray-700">
-                                        {line.replace('-', '').trim()}
-                                      </p>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <p key={idx} className="text-gray-700">
-                                    {line.trim()}
-                                  </p>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })}
+                <div className="dream-interpretation">
+                  <div className="dream-interpretation-section">
+                    <h3 className="dream-interpretation-title">Rüyanızın Genel Yorumu</h3>
+                    <p className="dream-interpretation-content">{interpretation}</p>
+                  </div>
+                  
+                  <div className="dream-interpretation-section">
+                    <h3 className="dream-interpretation-title">Psikolojik Analiz</h3>
+                    <p className="dream-interpretation-content">
+                      Bu rüya, bilinçaltınızdaki duygu ve düşüncelerin bir yansıması olabilir. 
+                      Rüyanızda görülen semboller, hayatınızdaki bazı durumları veya endişeleri temsil ediyor olabilir.
+                    </p>
+                  </div>
+                  
+                  <div className="dream-interpretation-section">
+                    <h3 className="dream-interpretation-title">Öneriler</h3>
+                    <p className="dream-interpretation-content">
+                      Bu rüyanın mesajlarını günlük hayatınıza nasıl uygulayabileceğinizi düşünün. 
+                      Rüyanızda ortaya çıkan temalar üzerine meditasyon yapmak faydalı olabilir.
+                    </p>
                   </div>
                 </div>
               )}

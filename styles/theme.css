@@ -1,0 +1,108 @@
+:root[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --accent-primary: #ff6b6b;
+  --accent-secondary: #ffd8d8;
+  --border-color: #e0e0e0;
+  --input-bg: #ffffff;
+  --card-bg: #ffffff;
+  --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --modal-bg: #ffffff;
+  --modal-overlay: rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="dark"] {
+  --bg-primary: #1a1b26;
+  --bg-secondary: #24283b;
+  --text-primary: #c0caf5;
+  --text-secondary: #9aa5ce;
+  --accent-primary: #ff79c6;
+  --accent-secondary: #bd93f9;
+  --border-color: #414868;
+  --input-bg: #1f2335;
+  --card-bg: #24283b;
+  --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --modal-bg: #1f2335;
+  --modal-overlay: rgba(0, 0, 0, 0.7);
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem;
+  border-radius: 50%;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+}
+
+.dream-interpretation {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  box-shadow: var(--card-shadow);
+}
+
+.dream-interpretation-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dream-interpretation-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.dream-interpretation-title {
+  color: var(--accent-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.dream-interpretation-content {
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+/* Global styles */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+input, textarea {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+button {
+  background-color: var(--accent-primary);
+  color: var(--bg-primary);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+button:hover {
+  background-color: var(--accent-secondary);
+}
