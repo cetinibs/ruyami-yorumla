@@ -179,66 +179,71 @@ export default function Home() {
       return;
     }
 
+    if (dream.trim().length > 1000) {
+      setError('Rüya metni çok uzun (maksimum 1000 karakter)');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     setInterpretation('');
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const token = localStorage.getItem('token');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       };
 
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Create AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const response = await fetch('/api/interpret', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ dream: dream.trim() }),
+        signal: controller.signal,
+      });
 
+      // Read the response as text first
+      const responseText = await response.text();
+
+      // Try to parse the response as JSON
+      let data;
       try {
-        const response = await fetch('/api/interpret', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ dream: dream.trim() }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        let data;
-        try {
-          data = await response.json();
-        } catch (parseError) {
-          throw new Error('Sunucu yanıtı işlenemedi. Lütfen tekrar deneyin.');
-        }
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu');
-        }
-
-        if (!data.interpretation) {
-          throw new Error('Rüya yorumu alınamadı');
-        }
-
-        setInterpretation(data.interpretation);
-        
-        if (token) {
-          await fetchDreams(token);
-        }
-      } catch (fetchError: any) {
-        if (fetchError.name === 'AbortError') {
-          throw new Error('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
-        }
-        throw fetchError;
-      } finally {
-        clearTimeout(timeoutId);
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Response text:', responseText);
+        throw new Error('Sunucu yanıtı geçersiz. Lütfen daha kısa bir rüya metni ile tekrar deneyin.');
       }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+      }
+
+      if (!data.interpretation) {
+        throw new Error('Rüya yorumu alınamadı. Lütfen tekrar deneyin.');
+      }
+
+      setInterpretation(data.interpretation);
+      
+      if (token) {
+        await fetchDreams(token).catch(console.error);
+      }
+
     } catch (error: any) {
       console.error('Dream interpretation error:', error);
-      setError(error.message || 'Bir hata oluştu');
+      if (error.name === 'AbortError') {
+        setError('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
+      } else {
+        setError(error.message || 'Bir hata oluştu. Lütfen tekrar deneyin.');
+      }
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };

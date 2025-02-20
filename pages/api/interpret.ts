@@ -27,7 +27,9 @@ type ResponseData = {
 
 export const config = {
   api: {
-    bodyParser: true,
+    bodyParser: {
+      sizeLimit: '1mb'
+    },
     responseLimit: false,
   },
 };
@@ -44,10 +46,11 @@ export default async function handler(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
   // Handle preflight request
   if (req.method === 'OPTIONS') {
-    return res.status(200).json({ success: true });
+    return res.status(200).end();
   }
 
   // Only allow POST requests
@@ -76,6 +79,13 @@ export default async function handler(
       });
     }
 
+    if (dream.trim().length > 1000) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dream text is too long (max 1000 characters)'
+      });
+    }
+
     // OpenAI API request with timeout
     const prompt = `Aşağıdaki rüyayı Türkçe olarak detaylı bir şekilde yorumla. 
     Rüya içeriği: "${dream.trim()}"
@@ -88,12 +98,12 @@ export default async function handler(
 
     let completion;
     try {
-      // Create a promise that rejects in 25 seconds
+      // Create a promise that rejects in 20 seconds
       const timeout = new Promise((_, reject) => {
         const id = setTimeout(() => {
           clearTimeout(id);
           reject(new Error('OpenAI API zaman aşımına uğradı'));
-        }, 25000);
+        }, 20000);
       });
 
       // Create the OpenAI API request promise
@@ -110,7 +120,7 @@ export default async function handler(
           }
         ],
         temperature: 0.7,
-        max_tokens: 800, // Reduced max tokens
+        max_tokens: 500,
         presence_penalty: 0.1,
         frequency_penalty: 0.1,
       });
@@ -120,9 +130,9 @@ export default async function handler(
 
     } catch (openaiError: any) {
       console.error('OpenAI API error:', openaiError);
-      return res.status(500).json({
+      return res.status(503).json({
         success: false,
-        error: 'OpenAI API hatası: ' + (openaiError.message || 'Bilinmeyen hata')
+        error: 'Rüya yorumlama servisi şu anda meşgul. Lütfen birkaç dakika sonra tekrar deneyin.'
       });
     }
 
@@ -131,21 +141,21 @@ export default async function handler(
     if (!interpretation) {
       return res.status(500).json({
         success: false,
-        error: 'OpenAI API yanıt vermedi'
+        error: 'Rüya yorumu alınamadı. Lütfen tekrar deneyin.'
       });
     }
 
-    // Save dream if user is authenticated (do this after sending the response)
-    const authHeader = req.headers.authorization;
+    // Prepare the response
     const response = {
       success: true,
-      interpretation
+      interpretation: interpretation.trim()
     };
 
-    // Send the response first
+    // Send the response
     res.status(200).json(response);
 
-    // Then save to database if needed
+    // Then try to save to database if user is authenticated
+    const authHeader = req.headers.authorization;
     if (authHeader) {
       try {
         const token = authHeader.replace('Bearer ', '');
@@ -157,8 +167,8 @@ export default async function handler(
             .insert([
               {
                 user_id: user.id,
-                dream_text: dream,
-                interpretation: interpretation,
+                dream_text: dream.trim(),
+                interpretation: interpretation.trim(),
               }
             ]);
         }
@@ -167,11 +177,16 @@ export default async function handler(
       }
     }
 
+    // End the response
+    res.end();
+
   } catch (error: any) {
     console.error('Unexpected error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Beklenmeyen bir hata oluştu'
-    });
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        error: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.'
+      });
+    }
   }
 }
