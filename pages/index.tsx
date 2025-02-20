@@ -192,12 +192,18 @@ export default function Home() {
       const apiUrl = `${baseUrl}/api/interpret`;
 
       console.log('Sending request to:', apiUrl);
+      console.log('Request headers:', headers);
+      console.log('Request body:', { dream: dream.trim() });
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({ dream: dream.trim() }),
         signal: controller.signal,
       });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       // Read the response as text first
       const responseText = await response.text();
@@ -207,16 +213,20 @@ export default function Home() {
       let data;
       try {
         data = JSON.parse(responseText);
+        console.log('Parsed response:', data);
       } catch (parseError) {
-        console.error('Failed to parse response:', responseText);
+        console.error('Failed to parse response:', parseError);
+        console.error('Response text was:', responseText);
         throw new Error('Sunucu yanıtını okuma hatası. Lütfen tekrar deneyin.');
       }
 
       if (!response.ok) {
+        console.error('Response not OK:', response.status, data);
         throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu. Lütfen tekrar deneyin.');
       }
 
       if (!data.success || !data.interpretation) {
+        console.error('Invalid response data:', data);
         throw new Error('Rüya yorumu alınamadı. Lütfen tekrar deneyin.');
       }
 
@@ -232,6 +242,8 @@ export default function Home() {
       console.error('Dream interpretation error:', error);
       if (error.name === 'AbortError') {
         setError('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
+      } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        setError('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.');
       } else {
         setError(error.message || 'Bir hata oluştu. Lütfen tekrar deneyin.');
       }

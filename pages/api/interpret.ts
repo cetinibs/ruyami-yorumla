@@ -34,24 +34,39 @@ export const config = {
   },
 };
 
-// Function to truncate interpretation if it's too long
-const truncateInterpretation = (text: string, maxLength: number = 2000): string => {
-  if (text.length <= maxLength) return text;
+// Function to sanitize and truncate interpretation
+const sanitizeInterpretation = (text: string, maxLength: number = 2000): string => {
+  if (!text) return '';
   
-  const truncated = text.substring(0, maxLength);
-  const lastPeriod = truncated.lastIndexOf('.');
+  // Remove any non-printable characters
+  let sanitized = text.replace(/[^\x20-\x7E\xA0-\xFF\u0100-\u017F\u0180-\u024F\u0300-\u036F\u1E00-\u1EFF]/g, '');
   
-  if (lastPeriod > maxLength * 0.8) {
-    return truncated.substring(0, lastPeriod + 1);
+  // Replace multiple spaces with single space
+  sanitized = sanitized.replace(/\s+/g, ' ');
+  
+  // Truncate if too long
+  if (sanitized.length > maxLength) {
+    const truncated = sanitized.substring(0, maxLength);
+    const lastPeriod = truncated.lastIndexOf('.');
+    if (lastPeriod > maxLength * 0.8) {
+      return truncated.substring(0, lastPeriod + 1);
+    }
+    return truncated + '...';
   }
   
-  return truncated + '...';
+  return sanitized.trim();
 };
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
+  console.log('API request received:', {
+    method: req.method,
+    headers: req.headers,
+    body: req.body
+  });
+
   // Set CORS headers first
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -60,44 +75,53 @@ export default async function handler(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Type', 'application/json');
 
   // Handle preflight request
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
 
   // Only allow POST requests
   if (req.method !== 'POST') {
-    return res.status(405).json({
+    console.log('Method not allowed:', req.method);
+    res.status(405).json({
       success: false,
       error: 'Method not allowed'
     });
+    return;
   }
 
   try {
     // Validate request body
     if (!req.body || typeof req.body !== 'object') {
-      return res.status(400).json({
+      console.log('Invalid request body:', req.body);
+      res.status(400).json({
         success: false,
         error: 'Invalid request body'
       });
+      return;
     }
 
     const { dream } = req.body;
 
     if (!dream || typeof dream !== 'string' || dream.trim().length === 0) {
-      return res.status(400).json({
+      console.log('Invalid dream text:', dream);
+      res.status(400).json({
         success: false,
         error: 'Dream text is required'
       });
+      return;
     }
 
     if (dream.trim().length > 1000) {
-      return res.status(400).json({
+      console.log('Dream text too long:', dream.length);
+      res.status(400).json({
         success: false,
         error: 'Dream text is too long (max 1000 characters)'
       });
+      return;
     }
 
     // OpenAI API request with timeout
@@ -144,40 +168,34 @@ export default async function handler(
 
     } catch (openaiError: any) {
       console.error('OpenAI API error:', openaiError);
-      return res.status(503).json({
+      res.status(503).json({
         success: false,
         error: 'Rüya yorumlama servisi şu anda meşgul. Lütfen birkaç dakika sonra tekrar deneyin.'
       });
+      return;
     }
 
     const interpretation = completion.data.choices[0]?.message?.content;
 
     if (!interpretation) {
-      return res.status(500).json({
+      console.log('No interpretation received from OpenAI');
+      res.status(500).json({
         success: false,
         error: 'Rüya yorumu alınamadı. Lütfen tekrar deneyin.'
       });
+      return;
     }
 
-    // Truncate interpretation if it's too long
-    const truncatedInterpretation = truncateInterpretation(interpretation.trim());
+    // Sanitize and truncate interpretation
+    const sanitizedInterpretation = sanitizeInterpretation(interpretation);
 
     // Prepare the response
     const response = {
       success: true,
-      interpretation: truncatedInterpretation
+      interpretation: sanitizedInterpretation
     };
 
-    // Test JSON stringification before sending
-    try {
-      JSON.stringify(response);
-    } catch (jsonError) {
-      console.error('JSON stringify error:', jsonError);
-      return res.status(500).json({
-        success: false,
-        error: 'Yanıt formatında hata oluştu. Lütfen tekrar deneyin.'
-      });
-    }
+    console.log('Sending response:', response);
 
     // Send the response
     res.status(200).json(response);
@@ -196,7 +214,7 @@ export default async function handler(
               {
                 user_id: user.id,
                 dream_text: dream.trim(),
-                interpretation: truncatedInterpretation,
+                interpretation: sanitizedInterpretation,
               }
             ]);
         }
@@ -208,7 +226,7 @@ export default async function handler(
   } catch (error: any) {
     console.error('Unexpected error:', error);
     if (!res.headersSent) {
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.'
       });
