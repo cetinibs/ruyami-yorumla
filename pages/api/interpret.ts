@@ -36,15 +36,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
-  console.log('API request received:', {
-    method: req.method,
-    body: req.body
-  });
-
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
@@ -52,8 +47,14 @@ export default async function handler(
 
   // Handle preflight request
   if (req.method === 'OPTIONS') {
-    return res.status(200).json({});
+    res.status(200).end();
+    return;
   }
+
+  console.log('API request received:', {
+    method: req.method,
+    body: req.body
+  });
 
   // Only allow POST requests
   if (req.method !== 'POST') {
