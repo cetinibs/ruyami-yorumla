@@ -275,9 +275,30 @@ export default function Home() {
 
       <Head>
         <title>Rüyamı Yorumla - AI Destekli Rüya Yorumlama</title>
-        <meta name="description" content="Yapay zeka destekli rüya yorumlama uygulaması" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="description" content="Yapay zeka destekli rüya yorumlama uygulaması ile rüyalarınızın anlamını keşfedin. Bilinçaltınızın mesajlarını çözümleyin." />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta name="keywords" content="rüya yorumu, rüya tabirleri, rüya analizi, yapay zeka, AI, rüya yorumlama" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ruya-yorumla.vercel.app/" />
+        <meta property="og:title" content="Rüyamı Yorumla - AI Destekli Rüya Yorumlama" />
+        <meta property="og:description" content="Yapay zeka destekli rüya yorumlama uygulaması ile rüyalarınızın anlamını keşfedin." />
+        <meta property="og:image" content="https://ruya-yorumla.vercel.app/og-image.jpg" />
+
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://ruya-yorumla.vercel.app/" />
+        <meta property="twitter:title" content="Rüyamı Yorumla - AI Destekli Rüya Yorumlama" />
+        <meta property="twitter:description" content="Yapay zeka destekli rüya yorumlama uygulaması ile rüyalarınızın anlamını keşfedin." />
+        <meta property="twitter:image" content="https://ruya-yorumla.vercel.app/og-image.jpg" />
+
+        {/* Canonical URL */}
+        <link rel="canonical" href="https://ruya-yorumla.vercel.app/" />
+        
+        {/* Favicon */}
         <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </Head>
 
       <div className="container mx-auto px-4 py-12">
@@ -425,7 +446,7 @@ export default function Home() {
                     <h3 className="dream-interpretation-title">Öneriler</h3>
                     <p className="dream-interpretation-content">
                       Bu rüyanın mesajlarını günlük hayatınıza nasıl uygulayabileceğinizi düşünün. 
-                      Rüyanızda ortaya çıkan temalar üzerine meditasyon yapmak faydalı olabilir.
+                      Rüyanızda ortaya çıkmış temalar üzerine meditasyon yapmak faydalı olabilir.
                     </p>
                   </div>
                 </div>

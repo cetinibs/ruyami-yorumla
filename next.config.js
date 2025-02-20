@@ -1,4 +1,7 @@
 const { i18n } = require('./next-i18next.config');
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -12,7 +15,22 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
   images: {
-    domains: ['*'],
+    domains: ['your-image-domain.com'], // Eğer harici resim domainleri kullanıyorsanız buraya ekleyin
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: true,
+  httpAgentOptions: {
+    keepAlive: true,
+  },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  experimental: {
+    optimizeCss: true,
+    scrollRestoration: true,
   },
   env: {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -49,4 +67,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+module.exports = withBundleAnalyzer(nextConfig)
