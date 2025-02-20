@@ -2,6 +2,13 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { Configuration, OpenAIApi } from 'openai';
 
+// Initialize OpenAI client
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const openai = new OpenAIApi(configuration);
+
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -11,13 +18,6 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Initialize OpenAI client
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const openai = new OpenAIApi(configuration);
 
 export default async function handler(
   req: NextApiRequest,
@@ -45,28 +45,6 @@ export default async function handler(
   }
 
   try {
-    // Get authorization header
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authorization header missing'
-      });
-    }
-
-    // Extract token
-    const token = authHeader.replace('Bearer ', '');
-
-    // Verify the session
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid or expired token'
-      });
-    }
-
     const { dream } = req.body;
 
     if (!dream) {
@@ -108,20 +86,27 @@ export default async function handler(
       throw new Error('OpenAI API yanıt vermedi');
     }
 
-    // Save to database
-    const { error: dbError } = await supabase
-      .from('dreams')
-      .insert([
-        {
-          user_id: user.id,
-          dream_text: dream,
-          interpretation: interpretation,
-        }
-      ]);
+    // Eğer kullanıcı giriş yapmışsa rüyayı kaydet
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (!authError && user) {
+        const { error: dbError } = await supabase
+          .from('dreams')
+          .insert([
+            {
+              user_id: user.id,
+              dream_text: dream,
+              interpretation: interpretation,
+            }
+          ]);
 
-    if (dbError) {
-      console.error('Database error:', dbError);
-      // Veritabanı hatası olsa bile yorumu döndür
+        if (dbError) {
+          console.error('Database error:', dbError);
+        }
+      }
     }
 
     return res.status(200).json({

@@ -178,20 +178,20 @@ export default function Home() {
     setInterpretation('');
 
     try {
-      // Get token from localStorage
+      // Get token if user is logged in
       const token = localStorage.getItem('token');
-      if (!token) {
-        setError('Lütfen önce giriş yapın');
-        setIsLoading(false);
-        return;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add authorization header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch('/api/interpret', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers,
         body: JSON.stringify({ dream }),
       });
 
@@ -203,21 +203,10 @@ export default function Home() {
       const data = await response.json();
       setInterpretation(data.interpretation);
       
-      // Rüyayı veritabanına kaydet
-      await fetch('/api/dreams', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          dreamText: dream,
-          interpretation: data.interpretation
-        }),
-      });
-
-      // Rüya listesini güncelle
-      fetchDreams(token);
+      // Eğer kullanıcı giriş yapmışsa rüyaları güncelle
+      if (token) {
+        fetchDreams(token);
+      }
     } catch (error: any) {
       console.error('Dream interpretation error:', error);
       setError(error.message || 'Bir hata oluştu');
@@ -350,41 +339,35 @@ export default function Home() {
                   </label>
                   <textarea
                     id="dream"
+                    name="dream"
+                    rows={6}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Rüyanızı detaylı bir şekilde anlatın..."
                     value={dream}
                     onChange={(e) => setDream(e.target.value)}
-                    maxLength={500}
-                    rows={6}
-                    className="input-primary"
-                    placeholder="Rüyanızı detaylı bir şekilde anlatın..."
                     required
                   />
-                  <div className="text-sm text-gray-500 text-right mt-1">
-                    {dream.length}/500 karakter
-                  </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isLoading || dream.length === 0}
-                  className="btn-primary w-full"
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center space-x-2">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Rüyanız Yorumlanıyor...</span>
-                    </div>
-                  ) : (
-                    'Rüyamı Yorumla'
-                  )}
-                </button>
+                <div>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className={`w-full py-3 px-4 rounded-lg text-white font-medium ${
+                      isLoading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
+                    }`}
+                  >
+                    {isLoading ? 'Yorumlanıyor...' : 'Rüyamı Yorumla'}
+                  </button>
+                </div>
 
                 {!user && (
-                  <p className="text-center text-gray-600">
-                    Rüya yorumlarınızı kaydetmek için{' '}
+                  <p className="text-sm text-gray-600 mt-2">
+                    Not: Rüya yorumlarınızı kaydetmek ve geçmiş yorumlarınızı görmek için{' '}
                     <button
                       type="button"
-                      onClick={() => setShowLogin(false)}
-                      className="text-indigo-600 hover:underline font-medium"
+                      onClick={() => setShowLogin(true)}
+                      className="text-indigo-600 hover:text-indigo-800 font-medium"
                     >
                       üye olun
                     </button>
@@ -393,32 +376,16 @@ export default function Home() {
               </form>
 
               {error && (
-                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                  <p className="text-red-600">{error}</p>
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-700">{error}</p>
                 </div>
               )}
 
               {interpretation && (
-                <div className="dream-interpretation">
+                <div className="dream-interpretation mt-8">
                   <div className="dream-interpretation-section">
                     <h3 className="dream-interpretation-title">Rüyanızın Genel Yorumu</h3>
                     <p className="dream-interpretation-content">{interpretation}</p>
-                  </div>
-                  
-                  <div className="dream-interpretation-section">
-                    <h3 className="dream-interpretation-title">Psikolojik Analiz</h3>
-                    <p className="dream-interpretation-content">
-                      Bu rüya, bilinçaltınızdaki duygu ve düşüncelerin bir yansıması olabilir. 
-                      Rüyanızda görülen semboller, hayatınızdaki bazı durumları veya endişeleri temsil ediyor olabilir.
-                    </p>
-                  </div>
-                  
-                  <div className="dream-interpretation-section">
-                    <h3 className="dream-interpretation-title">Öneriler</h3>
-                    <p className="dream-interpretation-content">
-                      Bu rüyanın mesajlarını günlük hayatınıza nasıl uygulayabileceğinizi düşünün. 
-                      Rüyanızda ortaya çıkmış temalar üzerine meditasyon yapmak faydalı olabilir.
-                    </p>
                   </div>
                 </div>
               )}
@@ -447,7 +414,7 @@ export default function Home() {
               </div>
 
               {successMessage && (
-                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-green-600">{successMessage}</p>
                 </div>
               )}
@@ -498,7 +465,7 @@ export default function Home() {
                 </div>
 
                 {error && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-red-600">{error}</p>
                   </div>
                 )}
