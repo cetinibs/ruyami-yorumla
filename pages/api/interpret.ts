@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -10,6 +11,9 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Initialize Gemini API
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 type ApiResponse = {
   interpretation?: string;
@@ -77,19 +81,22 @@ export default async function handler(
       });
     }
 
-    // Example interpretation (replace with your actual interpretation logic)
-    const interpretation = `
+    // Create Gemini model and prompt
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    
+    const prompt = `Aşağıdaki rüyayı Türkçe olarak detaylı bir şekilde yorumla. 
+    Rüya içeriği: "${dream.trim()}"
+    
+    Lütfen yorumunu şu başlıklar altında yap:
     1. Genel Yorum
-    Bu rüya, günlük yaşamınızdaki deneyimlerin ve duygusal durumunuzun bir yansıması olabilir.
-
     2. Psikolojik Analiz
-    Rüyanız, iç dünyanızda işlenmemiş duyguları ve düşünceleri temsil ediyor olabilir.
-
     3. Semboller ve Anlamları
-    Rüyanızda görülen semboller, yaşamınızdaki önemli unsurları temsil ediyor olabilir.
+    4. Öneriler`;
 
-    4. Öneriler
-    Bu rüya, kendinizi daha iyi anlamanız için bir fırsat olabilir.`;
+    // Generate interpretation using Gemini
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const interpretation = response.text();
 
     // Sanitize interpretation
     const sanitizedInterpretation = sanitizeInterpretation(interpretation);
