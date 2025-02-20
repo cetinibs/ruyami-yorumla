@@ -46,48 +46,33 @@ export default function Home() {
 
   const fetchDreams = async (token: string) => {
     try {
-      console.log('Fetching dreams with token:', token);
-      const response = await fetch('/api/dreams', {
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/dreams`;
+
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Dreams fetch failed:', response.status, errorText);
-        try {
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.error || errorJson.details || 'Failed to fetch dreams');
-        } catch (e) {
-          throw new Error(errorText || 'Failed to fetch dreams');
-        }
+        console.error('Failed to fetch dreams:', errorText);
+        throw new Error('Rüyalar yüklenirken bir hata oluştu');
       }
 
-      const responseText = await response.text();
-      console.log('Dreams response:', responseText);
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Failed to parse dreams response:', e);
-        throw new Error('Invalid response format');
-      }
-
+      const data = await response.json();
       if (!Array.isArray(data)) {
-        console.error('Invalid dreams data format:', data);
-        throw new Error('Invalid dreams data format');
+        throw new Error('Geçersiz veri formatı');
       }
 
-      console.log('Dreams fetched successfully:', data.length);
       setDreams(data);
-    } catch (error: any) {
-      console.error('Fetch dreams error:', error);
-      setError(error.message || 'Failed to fetch dreams');
-      setDreams([]);
+    } catch (error) {
+      console.error('Error fetching dreams:', error);
+      // Don't show error to user, just log it
     }
   };
 
@@ -202,7 +187,12 @@ export default function Home() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch('/api/interpret', {
+      // Get base URL from window.location
+      const baseUrl = window.location.origin;
+      const apiUrl = `${baseUrl}/api/interpret`;
+
+      console.log('Sending request to:', apiUrl);
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({ dream: dream.trim() }),
@@ -211,13 +201,14 @@ export default function Home() {
 
       // Read the response as text first
       const responseText = await response.text();
+      console.log('Response text:', responseText);
 
       // Try to parse the response as JSON
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('Response text:', responseText);
+        console.error('Failed to parse response:', responseText);
         throw new Error('Sunucu yanıtı geçersiz. Lütfen daha kısa bir rüya metni ile tekrar deneyin.');
       }
 
