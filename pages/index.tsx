@@ -332,7 +332,31 @@ export default function Home() {
 
           {/* Ana İçerik */}
           <div className={`${user ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
-            <div className="dream-card">
+            <div className="mb-8 text-center bg-gradient-to-r from-purple-900 to-blue-900 rounded-lg p-6 text-white">
+              <h2 className="text-xl mb-6">Rüyalarınızdaki gizli mesajları ve bilinçaltınızın sırlarını ortaya çıkarın!</h2>
+              <div className="flex justify-center space-x-12">
+                <div className="text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <svg className="w-8 h-8 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.93 4.93l4.24 4.24m10.59 10.59l-4.24-4.24m0-10.59l4.24 4.24-4.24 4.24"/>
+                    </svg>
+                    <span className="text-4xl font-bold">84,632</span>
+                  </div>
+                  <p className="text-gray-300">bu ay analiz edilen rüyalar</p>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <svg className="w-8 h-8 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    <span className="text-4xl font-bold">15,234</span>
+                  </div>
+                  <p className="text-gray-300">bu haftaki aktif rüya görenleri</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
               <form onSubmit={handleDreamSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="dream" className="block text-lg font-medium text-gray-700 mb-2">
