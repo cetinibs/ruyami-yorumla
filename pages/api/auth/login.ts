@@ -1,9 +1,25 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '../../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+type ResponseData = {
+  success: boolean;
+  error?: string;
+  data?: any;
+};
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<ResponseData>
 ) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -14,86 +30,72 @@ export default async function handler(
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
 
+  // Handle preflight request
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
 
+  // Only allow POST requests
   if (req.method !== 'POST') {
-    return res.status(405).json({
+    res.status(405).json({
       success: false,
       error: 'Method not allowed'
     });
+    return;
   }
 
   try {
     const { email, password } = req.body;
 
-    // Validate input
     if (!email || !password) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
-        error: 'Email ve şifre gereklidir'
+        error: 'Email ve şifre gerekli'
       });
+      return;
     }
 
-    console.log('Attempting login for email:', email);
-
-    // Attempt to sign in with Supabase
+    console.log('Attempting login with:', { email });
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: email.trim(),
+      password: password.trim(),
     });
 
     if (error) {
       console.error('Login error:', error);
-      
-      // Handle specific error cases
-      if (error.message.includes('Invalid login credentials')) {
-        return res.status(401).json({
-          success: false,
-          error: 'Geçersiz email veya şifre'
-        });
-      }
-
-      if (error.message.includes('Email not confirmed')) {
-        return res.status(401).json({
-          success: false,
-          error: 'Email adresinizi onaylamanız gerekiyor'
-        });
-      }
-
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
-        error: error.message
+        error: error.message === 'Invalid login credentials'
+          ? 'Geçersiz email veya şifre'
+          : error.message
       });
+      return;
     }
 
-    if (!data.user || !data.session) {
-      return res.status(500).json({
+    if (!data?.user || !data?.session) {
+      console.error('No user or session data:', data);
+      res.status(500).json({
         success: false,
-        error: 'Giriş işlemi başarısız oldu'
+        error: 'Giriş başarısız. Lütfen tekrar deneyin.'
       });
+      return;
     }
 
-    console.log('Login successful for user:', data.user.id);
-
-    // Return user data and session token
-    return res.status(200).json({
+    console.log('Login successful:', { user: data.user });
+    res.status(200).json({
       success: true,
-      token: data.session.access_token,
-      user: {
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.user_metadata.name
+      data: {
+        user: data.user,
+        session: data.session
       }
     });
 
-  } catch (error) {
-    console.error('Unexpected login error:', error);
-    return res.status(500).json({
+  } catch (error: any) {
+    console.error('Unexpected error:', error);
+    res.status(500).json({
       success: false,
-      error: 'Giriş işlemi sırasında bir hata oluştu'
+      error: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.'
     });
   }
 }

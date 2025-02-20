@@ -3,6 +3,12 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useTheme } from '../contexts/ThemeContext';
 import { FaSun, FaMoon } from 'react-icons/fa';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = 'https://your-supabase-url.supabase.co';
+const supabaseKey = 'your-supabase-key';
+const supabaseSecret = 'your-supabase-secret';
+const supabase = createClient(supabaseUrl, supabaseKey, supabaseSecret);
 
 type Dream = {
   _id: string;
@@ -46,8 +52,8 @@ export default function Home() {
 
   const fetchDreams = async (token: string) => {
     try {
-      const baseUrl = window.location.origin;
-      const apiUrl = `${baseUrl}/api/dreams`;
+      // Use relative URL for API requests
+      const apiUrl = '/api/dreams';
 
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -76,81 +82,76 @@ export default function Home() {
     }
   };
 
-  const handleAuth = async (e: React.FormEvent, isLogin: boolean) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
-    setSuccessMessage('');
+    setIsLoading(true);
 
     try {
-      console.log('Starting auth process:', isLogin ? 'login' : 'register');
-      const response = await fetch(`/api/auth/${isLogin ? 'login' : 'register'}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(isLogin ? { email, password } : { email, password, name }),
+      console.log('Attempting login with:', { email });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Auth failed:', response.status, errorText);
-        try {
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.error || errorJson.details || `${isLogin ? 'Giriş' : 'Kayıt'} işlemi başarısız oldu`);
-        } catch (e) {
-          throw new Error(errorText || `${isLogin ? 'Giriş' : 'Kayıt'} işlemi başarısız oldu`);
-        }
+      if (error) {
+        console.error('Login error:', error);
+        throw new Error(error.message === 'Invalid login credentials' 
+          ? 'Geçersiz email veya şifre'
+          : error.message);
       }
 
-      const responseText = await response.text();
-      console.log('Auth response:', responseText);
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Failed to parse auth response:', e);
-        throw new Error('Invalid response format');
+      if (!data?.user || !data?.session) {
+        console.error('No user or session data:', data);
+        throw new Error('Giriş başarısız. Lütfen tekrar deneyin.');
       }
 
-      if (isLogin) {
-        if (!data?.token || !data?.user) {
-          console.error('Invalid login response:', data);
-          throw new Error('Geçersiz giriş yanıtı: Token veya kullanıcı bilgisi eksik');
-        }
+      console.log('Login successful:', { user: data.user });
+      localStorage.setItem('token', data.session.access_token);
+      setUser(data.user);
+      setShowLogin(false);
+      await fetchDreams(data.session.access_token);
 
-        console.log('Login successful, setting token and user data');
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        setUser(data.user);
-        
-        // Giriş başarılı olduğunda dreams'i yükle
-        try {
-          await fetchDreams(data.token);
-          setShowLogin(null); // Modal'ı sadece dreams yüklendikten sonra kapat
-        } catch (fetchError) {
-          console.error('Error fetching dreams after login:', fetchError);
-          // Dreams yüklenemese bile kullanıcıya bilgi ver
-          setError('Giriş başarılı fakat rüyalar yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.');
-        }
-      } else {
-        // Kayıt başarılı olduğunda
-        setSuccessMessage('Kayıt işlemi başarılı! Şimdi giriş yapabilirsiniz.');
-        setRegisteredEmail(email);
-        setRegisteredPassword(password);
-        setShowLogin(true);
-        
-        // Giriş formunu önceden doldur
-        setEmail(email);
-        setPassword(password);
-        
-        // Diğer form alanlarını temizle
-        setName('');
-      }
     } catch (error: any) {
-      console.error('Auth error:', error);
-      setError(error.message || `${isLogin ? 'Giriş' : 'Kayıt'} işlemi sırasında bir hata oluştu`);
+      console.error('Login error:', error);
+      setError(error.message || 'Giriş sırasında bir hata oluştu');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      console.log('Attempting signup with:', { email });
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      if (error) {
+        console.error('Signup error:', error);
+        if (error.message.includes('already registered')) {
+          throw new Error('Bu email adresi zaten kayıtlı');
+        }
+        throw error;
+      }
+
+      if (!data?.user) {
+        console.error('No user data:', data);
+        throw new Error('Kayıt başarısız. Lütfen tekrar deneyin.');
+      }
+
+      console.log('Signup successful:', { user: data.user });
+      setError('Kayıt başarılı! Lütfen email adresinize gönderilen onay linkine tıklayın.');
+      setIsLoading(false);
+
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      setError(error.message || 'Kayıt sırasında bir hata oluştu');
     } finally {
       setIsLoading(false);
     }
@@ -173,61 +174,30 @@ export default function Home() {
     setError('');
     setInterpretation('');
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-
     try {
       const token = localStorage.getItem('token');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       };
 
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Get base URL from window.location
-      const baseUrl = window.location.origin;
-      const apiUrl = `${baseUrl}/api/interpret`;
-
-      console.log('Sending request to:', apiUrl);
-      console.log('Request headers:', headers);
-      console.log('Request body:', { dream: dream.trim() });
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch('/api/interpret', {
         method: 'POST',
         headers,
         body: JSON.stringify({ dream: dream.trim() }),
-        signal: controller.signal,
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      // Read the response as text first
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
-
-      // Try to parse the response as JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        console.log('Parsed response:', data);
-      } catch (parseError) {
-        console.error('Failed to parse response:', parseError);
-        console.error('Response text was:', responseText);
-        throw new Error('Sunucu yanıtını okuma hatası. Lütfen tekrar deneyin.');
-      }
+      const data = await response.json();
 
       if (!response.ok) {
-        console.error('Response not OK:', response.status, data);
-        throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+        throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu');
       }
 
-      if (!data.success || !data.interpretation) {
-        console.error('Invalid response data:', data);
-        throw new Error('Rüya yorumu alınamadı. Lütfen tekrar deneyin.');
+      if (!data.interpretation) {
+        throw new Error('Rüya yorumu alınamadı');
       }
 
       setInterpretation(data.interpretation);
@@ -240,15 +210,8 @@ export default function Home() {
 
     } catch (error: any) {
       console.error('Dream interpretation error:', error);
-      if (error.name === 'AbortError') {
-        setError('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
-      } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        setError('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.');
-      } else {
-        setError(error.message || 'Bir hata oluştu. Lütfen tekrar deneyin.');
-      }
+      setError(error.message || 'Bir hata oluştu');
     } finally {
-      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };
@@ -457,7 +420,7 @@ export default function Home() {
                 </div>
               )}
 
-              <form onSubmit={(e) => handleAuth(e, showLogin)} className="space-y-4">
+              <form onSubmit={(e) => showLogin ? handleLogin(e) : handleSignup(e)} className="space-y-4">
                 {!showLogin && (
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">

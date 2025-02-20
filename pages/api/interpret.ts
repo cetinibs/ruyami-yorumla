@@ -9,6 +9,11 @@ const configuration = new Configuration({
 
 const openai = new OpenAIApi(configuration);
 
+// Validate OpenAI API key
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error('Missing OpenAI API key');
+}
+
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -124,7 +129,7 @@ export default async function handler(
       return;
     }
 
-    // OpenAI API request with timeout
+    // Create prompt
     const prompt = `Aşağıdaki rüyayı Türkçe olarak detaylı bir şekilde yorumla. 
     Rüya içeriği: "${dream.trim()}"
     
@@ -134,6 +139,7 @@ export default async function handler(
     3. Semboller ve Anlamları
     4. Öneriler`;
 
+    // Make OpenAI API request
     let completion;
     try {
       // Create a promise that rejects in 20 seconds
@@ -175,16 +181,17 @@ export default async function handler(
       return;
     }
 
-    const interpretation = completion.data.choices[0]?.message?.content;
-
-    if (!interpretation) {
-      console.log('No interpretation received from OpenAI');
+    // Validate OpenAI response
+    if (!completion.data?.choices?.[0]?.message?.content) {
+      console.error('Invalid OpenAI response:', completion.data);
       res.status(500).json({
         success: false,
-        error: 'Rüya yorumu alınamadı. Lütfen tekrar deneyin.'
+        error: 'Invalid response from OpenAI'
       });
       return;
     }
+
+    const interpretation = completion.data.choices[0].message.content.trim();
 
     // Sanitize and truncate interpretation
     const sanitizedInterpretation = sanitizeInterpretation(interpretation);
@@ -224,7 +231,34 @@ export default async function handler(
     }
 
   } catch (error: any) {
-    console.error('Unexpected error:', error);
+    // Log the full error
+    console.error('API error:', error);
+    console.error('API error response:', error.response?.data);
+
+    // Handle OpenAI API errors
+    if (error.response?.status === 429) {
+      res.status(429).json({
+        success: false,
+        error: 'Rate limit exceeded. Please try again later.'
+      });
+    }
+
+    if (error.response?.status === 401) {
+      res.status(500).json({
+        success: false,
+        error: 'OpenAI API authentication failed'
+      });
+    }
+
+    // Handle network errors
+    if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
+      res.status(503).json({
+        success: false,
+        error: 'Service temporarily unavailable'
+      });
+    }
+
+    // Return generic error
     if (!res.headersSent) {
       res.status(500).json({
         success: false,
