@@ -209,21 +209,23 @@ export default function Home() {
         data = JSON.parse(responseText);
       } catch (parseError) {
         console.error('Failed to parse response:', responseText);
-        throw new Error('Sunucu yanıtı geçersiz. Lütfen daha kısa bir rüya metni ile tekrar deneyin.');
+        throw new Error('Sunucu yanıtını okuma hatası. Lütfen tekrar deneyin.');
       }
 
       if (!response.ok) {
         throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu. Lütfen tekrar deneyin.');
       }
 
-      if (!data.interpretation) {
+      if (!data.success || !data.interpretation) {
         throw new Error('Rüya yorumu alınamadı. Lütfen tekrar deneyin.');
       }
 
       setInterpretation(data.interpretation);
       
       if (token) {
-        await fetchDreams(token).catch(console.error);
+        await fetchDreams(token).catch(error => {
+          console.error('Failed to fetch dreams:', error);
+        });
       }
 
     } catch (error: any) {

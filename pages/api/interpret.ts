@@ -34,6 +34,20 @@ export const config = {
   },
 };
 
+// Function to truncate interpretation if it's too long
+const truncateInterpretation = (text: string, maxLength: number = 2000): string => {
+  if (text.length <= maxLength) return text;
+  
+  const truncated = text.substring(0, maxLength);
+  const lastPeriod = truncated.lastIndexOf('.');
+  
+  if (lastPeriod > maxLength * 0.8) {
+    return truncated.substring(0, lastPeriod + 1);
+  }
+  
+  return truncated + '...';
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
@@ -145,11 +159,25 @@ export default async function handler(
       });
     }
 
+    // Truncate interpretation if it's too long
+    const truncatedInterpretation = truncateInterpretation(interpretation.trim());
+
     // Prepare the response
     const response = {
       success: true,
-      interpretation: interpretation.trim()
+      interpretation: truncatedInterpretation
     };
+
+    // Test JSON stringification before sending
+    try {
+      JSON.stringify(response);
+    } catch (jsonError) {
+      console.error('JSON stringify error:', jsonError);
+      return res.status(500).json({
+        success: false,
+        error: 'Yanıt formatında hata oluştu. Lütfen tekrar deneyin.'
+      });
+    }
 
     // Send the response
     res.status(200).json(response);
@@ -168,7 +196,7 @@ export default async function handler(
               {
                 user_id: user.id,
                 dream_text: dream.trim(),
-                interpretation: interpretation.trim(),
+                interpretation: truncatedInterpretation,
               }
             ]);
         }
@@ -176,9 +204,6 @@ export default async function handler(
         console.error('Database operation error:', dbError);
       }
     }
-
-    // End the response
-    res.end();
 
   } catch (error: any) {
     console.error('Unexpected error:', error);
