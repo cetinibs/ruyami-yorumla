@@ -263,18 +263,20 @@ export default function Home() {
   };
 
   return (
-    <div className={`min-h-screen bg-${theme === 'light' ? 'white' : 'gray-900'}`}>
+    <div className="min-h-screen">
       <button
         onClick={toggleTheme}
         className="theme-toggle"
-        aria-label="Toggle theme"
+        aria-label="Temayı değiştir"
+        title={theme === 'light' ? 'Koyu temaya geç' : 'Açık temaya geç'}
       >
-        {theme === 'light' ? <FaMoon /> : <FaSun />}
+        {theme === 'light' ? <FaMoon size={20} /> : <FaSun size={20} />}
       </button>
 
       <Head>
         <title>Rüyamı Yorumla - AI Destekli Rüya Yorumlama</title>
         <meta name="description" content="Yapay zeka destekli rüya yorumlama uygulaması" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
