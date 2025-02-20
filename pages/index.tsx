@@ -193,31 +193,47 @@ export default function Home() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch('/api/interpret', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ dream: dream.trim() }),
-      });
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      let data;
       try {
-        data = await response.json();
-      } catch (parseError) {
-        throw new Error('Sunucu yanıtı işlenemedi');
-      }
+        const response = await fetch('/api/interpret', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ dream: dream.trim() }),
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu');
-      }
+        clearTimeout(timeoutId);
 
-      if (!data.interpretation) {
-        throw new Error('Rüya yorumu alınamadı');
-      }
+        let data;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          throw new Error('Sunucu yanıtı işlenemedi. Lütfen tekrar deneyin.');
+        }
 
-      setInterpretation(data.interpretation);
-      
-      if (token) {
-        await fetchDreams(token);
+        if (!response.ok) {
+          throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu');
+        }
+
+        if (!data.interpretation) {
+          throw new Error('Rüya yorumu alınamadı');
+        }
+
+        setInterpretation(data.interpretation);
+        
+        if (token) {
+          await fetchDreams(token);
+        }
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          throw new Error('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.');
+        }
+        throw fetchError;
+      } finally {
+        clearTimeout(timeoutId);
       }
     } catch (error: any) {
       console.error('Dream interpretation error:', error);

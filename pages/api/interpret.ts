@@ -25,19 +25,28 @@ type ResponseData = {
   error?: string;
 };
 
+export const config = {
+  api: {
+    bodyParser: true,
+    responseLimit: false,
+  },
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
+  // Set CORS headers first
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+  );
+
   // Handle preflight request
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-    );
     return res.status(200).json({ success: true });
   }
 
@@ -67,7 +76,7 @@ export default async function handler(
       });
     }
 
-    // OpenAI API request
+    // OpenAI API request with timeout
     const prompt = `Aşağıdaki rüyayı Türkçe olarak detaylı bir şekilde yorumla. 
     Rüya içeriği: "${dream.trim()}"
     
@@ -79,7 +88,16 @@ export default async function handler(
 
     let completion;
     try {
-      completion = await openai.createChatCompletion({
+      // Create a promise that rejects in 25 seconds
+      const timeout = new Promise((_, reject) => {
+        const id = setTimeout(() => {
+          clearTimeout(id);
+          reject(new Error('OpenAI API zaman aşımına uğradı'));
+        }, 25000);
+      });
+
+      // Create the OpenAI API request promise
+      const openaiPromise = openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: [
           {
@@ -92,8 +110,14 @@ export default async function handler(
           }
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_tokens: 800, // Reduced max tokens
+        presence_penalty: 0.1,
+        frequency_penalty: 0.1,
       });
+
+      // Race between timeout and the API request
+      completion = await Promise.race([openaiPromise, timeout]) as any;
+
     } catch (openaiError: any) {
       console.error('OpenAI API error:', openaiError);
       return res.status(500).json({
@@ -111,15 +135,24 @@ export default async function handler(
       });
     }
 
-    // Save dream if user is authenticated
+    // Save dream if user is authenticated (do this after sending the response)
     const authHeader = req.headers.authorization;
+    const response = {
+      success: true,
+      interpretation
+    };
+
+    // Send the response first
+    res.status(200).json(response);
+
+    // Then save to database if needed
     if (authHeader) {
       try {
         const token = authHeader.replace('Bearer ', '');
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         
         if (!authError && user) {
-          const { error: dbError } = await supabase
+          await supabase
             .from('dreams')
             .insert([
               {
@@ -128,22 +161,11 @@ export default async function handler(
                 interpretation: interpretation,
               }
             ]);
-
-          if (dbError) {
-            console.error('Database error:', dbError);
-          }
         }
       } catch (dbError) {
         console.error('Database operation error:', dbError);
-        // Continue with the response even if database operation fails
       }
     }
-
-    // Return successful response
-    return res.status(200).json({
-      success: true,
-      interpretation
-    });
 
   } catch (error: any) {
     console.error('Unexpected error:', error);
