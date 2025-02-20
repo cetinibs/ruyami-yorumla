@@ -173,6 +173,12 @@ export default function Home() {
 
   const handleDreamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!dream.trim()) {
+      setError('Lütfen rüyanızı anlatın');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     setInterpretation('');
@@ -189,18 +195,25 @@ export default function Home() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      console.log('Sending dream interpretation request...');
       const response = await fetch('/api/interpret', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ dream }),
+        body: JSON.stringify({ dream: dream.trim() }),
       });
 
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Rüya yorumlama sırasında bir hata oluştu');
+        throw new Error(data.error || 'Rüya yorumlama sırasında bir hata oluştu');
       }
 
-      const data = await response.json();
+      if (!data.interpretation) {
+        throw new Error('Rüya yorumu alınamadı');
+      }
+
       setInterpretation(data.interpretation);
       
       // Eğer kullanıcı giriş yapmışsa rüyaları güncelle
