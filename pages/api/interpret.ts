@@ -11,6 +11,11 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+type ApiResponse = {
+  interpretation?: string;
+  error?: string;
+};
+
 // Helper function to sanitize interpretation text
 function sanitizeInterpretation(text: string): string {
   return text
@@ -21,7 +26,7 @@ function sanitizeInterpretation(text: string): string {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<ApiResponse>
 ) {
   console.log('API request received:', {
     method: req.method,

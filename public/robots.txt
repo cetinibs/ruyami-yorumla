@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://ruya-yorumla.vercel.app
+
+# Sitemaps
+Sitemap: https://ruya-yorumla.vercel.app/sitemap.xml
