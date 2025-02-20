@@ -13,7 +13,11 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Initialize Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error('Missing Gemini API key');
+}
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 type ApiResponse = {
   interpretation?: string;
@@ -81,52 +85,60 @@ export default async function handler(
       });
     }
 
-    // Create Gemini model and prompt
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-    
-    const prompt = `Aşağıdaki rüyayı Türkçe olarak detaylı bir şekilde yorumla. 
-    Rüya içeriği: "${dream.trim()}"
-    
-    Lütfen yorumunu şu başlıklar altında yap:
-    1. Genel Yorum
-    2. Psikolojik Analiz
-    3. Semboller ve Anlamları
-    4. Öneriler`;
+    try {
+      // Create Gemini model and prompt
+      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      
+      const prompt = `Aşağıdaki rüyayı Türkçe olarak detaylı bir şekilde yorumla. 
+      Rüya içeriği: "${dream.trim()}"
+      
+      Lütfen yorumunu şu başlıklar altında yap:
+      1. Genel Yorum
+      2. Psikolojik Analiz
+      3. Semboller ve Anlamları
+      4. Öneriler`;
 
-    // Generate interpretation using Gemini
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const interpretation = response.text();
+      // Generate interpretation using Gemini
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const interpretation = response.text();
 
-    // Sanitize interpretation
-    const sanitizedInterpretation = sanitizeInterpretation(interpretation);
+      // Sanitize interpretation
+      const sanitizedInterpretation = sanitizeInterpretation(interpretation);
 
-    // Save to database if user is authenticated
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (token) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser(token);
-        if (user) {
-          await supabase
-            .from('dreams')
-            .insert([
-              {
-                user_id: user.id,
-                dream_text: dream.trim(),
-                interpretation: sanitizedInterpretation,
-              }
-            ]);
+      // Save to database if user is authenticated
+      const token = req.headers.authorization?.replace('Bearer ', '');
+      if (token) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser(token);
+          if (user) {
+            await supabase
+              .from('dreams')
+              .insert([
+                {
+                  user_id: user.id,
+                  dream_text: dream.trim(),
+                  interpretation: sanitizedInterpretation,
+                }
+              ]);
+          }
+        } catch (error) {
+          console.error('Database error:', error);
+          // Continue even if database save fails
         }
-      } catch (error) {
-        console.error('Database error:', error);
-        // Continue even if database save fails
       }
-    }
 
-    // Always return a valid JSON response
-    return res.status(200).json({
-      interpretation: sanitizedInterpretation
-    });
+      // Always return a valid JSON response
+      return res.status(200).json({
+        interpretation: sanitizedInterpretation
+      });
+
+    } catch (geminiError: any) {
+      console.error('Gemini API error:', geminiError);
+      return res.status(503).json({
+        error: 'Rüya yorumlama servisi şu anda meşgul. Lütfen birkaç dakika sonra tekrar deneyin.'
+      });
+    }
 
   } catch (error: any) {
     console.error('API error:', error);
