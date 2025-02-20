@@ -186,8 +186,11 @@ export default function Home() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Use relative URL for API requests
-      const response = await fetch('/api/interpret', {
+      // Get the current hostname
+      const hostname = window.location.origin;
+
+      // Use absolute URL for API requests
+      const response = await fetch(`${hostname}/api/interpret`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ dream: dream.trim() }),
@@ -203,35 +206,22 @@ export default function Home() {
         );
       }
 
-      // Then try to parse the response
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        console.error('Failed to parse response:', parseError);
-        throw new Error('Sunucu yanıtını okuma hatası');
-      }
-
-      // Validate response data
-      if (!data || typeof data.interpretation !== 'string') {
-        console.error('Invalid response data:', data);
+      const data = await response.json();
+      if (!data?.interpretation) {
         throw new Error('Geçersiz API yanıtı');
       }
 
       setInterpretation(data.interpretation);
-      
+      setSuccessMessage('Rüyanız başarıyla yorumlandı!');
+
+      // Fetch updated dreams list if user is logged in
       if (token) {
-        await fetchDreams(token).catch(error => {
-          console.error('Failed to fetch dreams:', error);
-        });
+        await fetchDreams(token);
       }
 
     } catch (error: any) {
-      console.error('Dream interpretation error:', error);
-      setError(
-        error.message || 
-        'Rüya yorumlama sırasında bir hata oluştu. Lütfen tekrar deneyin.'
-      );
+      console.error('Error submitting dream:', error);
+      setError(error.message || 'Rüya yorumlanırken bir hata oluştu');
     } finally {
       setIsLoading(false);
     }
