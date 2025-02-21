@@ -195,16 +195,16 @@ export default function Home() {
         {/* Stats Section */}
         <div className="mb-12 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl p-6 backdrop-blur-sm">
           <h2 className="text-xl text-center mb-6 text-blue-200">
-            Rüyalarınızdaki gizli mesajları ve bilinçaltınızın sırlarını ortaya çıkarın!
+            {t('discoverSecrets')}
           </h2>
           <div className="flex justify-center space-x-12">
             <div className="text-center">
               <div className="text-4xl font-bold text-blue-300 mb-2">84,632</div>
-              <p className="text-blue-200">bu ay analiz edilen rüyalar</p>
+              <p className="text-blue-200">{t('monthlyDreams')}</p>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-blue-300 mb-2">15,234</div>
-              <p className="text-blue-200">bu haftaki aktif rüya görenleri</p>
+              <p className="text-blue-200">{t('weeklyDreamers')}</p>
             </div>
           </div>
         </div>
@@ -215,14 +215,14 @@ export default function Home() {
             <form onSubmit={handleDreamSubmit} className="space-y-6">
               <div>
                 <label htmlFor="dream" className="block text-xl font-semibold text-blue-200 mb-3">
-                  Rüyanızı Anlatın
+                  {t('dreamPlaceholder')}
                 </label>
                 <textarea
                   id="dream"
                   name="dream"
                   rows={6}
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400 resize-none"
-                  placeholder="Rüyanızı detaylı bir şekilde anlatın..."
+                  placeholder={t('dreamPlaceholder')}
                   value={dream}
                   onChange={(e) => setDream(e.target.value)}
                   required
@@ -239,20 +239,33 @@ export default function Home() {
                       : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
                   }`}
                 >
-                  {isLoading ? 'Yorumlanıyor...' : 'Rüyamı Yorumla'}
+                  {isLoading ? t('loading') : t('interpretButton')}
                 </button>
               </div>
+
+              {!user && (
+                <p className="text-sm text-gray-300 dark:text-gray-400 mt-4 text-center">
+                  {t('notLoggedIn')}{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowLogin(true)}
+                    className="text-blue-400 hover:text-blue-300 font-medium underline"
+                  >
+                    {t('loginButton')}
+                  </button>
+                </p>
+              )}
             </form>
 
             {error && (
               <div className="mt-4 p-4 bg-red-900/50 border border-red-500/50 rounded-lg text-red-200">
-                {error}
+                {t(`error.${error}`)}
               </div>
             )}
 
             {interpretation && (
               <div className="mt-8 space-y-6">
-                <h3 className="text-2xl font-semibold text-blue-200">Rüya Yorumu</h3>
+                <h3 className="text-2xl font-semibold text-blue-200">{t('interpretationTitle')}</h3>
                 <div className="prose prose-lg prose-invert max-w-none">
                   {interpretation.split('\n').map((paragraph, index) => (
                     <p key={index} className="text-gray-200 leading-relaxed">
@@ -271,7 +284,7 @@ export default function Home() {
                 onClick={() => setShowLogin(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition duration-300"
               >
-                Giriş Yap
+                {t('loginButton')}
               </button>
             </div>
           )}
@@ -281,14 +294,14 @@ export default function Home() {
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
               <div className="bg-gray-900 rounded-xl p-8 max-w-md w-full">
                 <h2 className="text-2xl font-bold text-center mb-6 text-blue-200">
-                  {showLogin ? 'Giriş Yap' : 'Üye Ol'}
+                  {showLogin ? t('loginButton') : t('signupButton')}
                 </h2>
 
                 <form onSubmit={showLogin ? handleLogin : handleSignup} className="space-y-4">
                   <div>
                     <input
                       type="email"
-                      placeholder="E-posta"
+                      placeholder={t('email')}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400"
@@ -298,7 +311,7 @@ export default function Home() {
                   <div>
                     <input
                       type="password"
-                      placeholder="Şifre"
+                      placeholder={t('password')}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400"
@@ -310,7 +323,7 @@ export default function Home() {
                     type="submit"
                     className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
                   >
-                    {showLogin ? 'Giriş Yap' : 'Üye Ol'}
+                    {showLogin ? t('loginButton') : t('signupButton')}
                   </button>
                 </form>
 
@@ -319,7 +332,7 @@ export default function Home() {
                     onClick={() => setShowLogin(!showLogin)}
                     className="text-blue-400 hover:text-blue-300"
                   >
-                    {showLogin ? 'Hesap oluştur' : 'Giriş yap'}
+                    {showLogin ? t('createAccount') : t('backToLogin')}
                   </button>
                 </div>
 
@@ -336,7 +349,7 @@ export default function Home() {
           {/* User's Dreams */}
           {user && dreams.length > 0 && (
             <div className="mt-12">
-              <h2 className="text-2xl font-semibold text-blue-200 mb-6">Geçmiş Rüyalarınız</h2>
+              <h2 className="text-2xl font-semibold text-blue-200 mb-6">{t('pastDreams')}</h2>
               <div className="space-y-4">
                 {dreams.map((dream) => (
                   <div
