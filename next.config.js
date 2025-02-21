@@ -7,7 +7,11 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  i18n,
+  i18n: {
+    defaultLocale: 'tr',
+    locales: ['tr', 'en', 'ar', 'de'],
+    localeDetection: true,
+  },
   typescript: {
     ignoreBuildErrors: true
   },
@@ -15,7 +19,7 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
   images: {
-    domains: ['your-image-domain.com'], // Eğer harici resim domainleri kullanıyorsanız buraya ekleyin
+    domains: ['lh3.googleusercontent.com'], 
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },

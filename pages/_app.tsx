@@ -15,14 +15,15 @@ function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
 
   const changeLanguage = (language: string) => {
-    router.push(router.pathname, router.asPath, { locale: language });
+    const { pathname, asPath, query } = router;
+    router.push({ pathname, query }, asPath, { locale: language });
   };
 
   return (
     <ThemeProvider>
       <main className={inter.className}>
         <Component {...pageProps} />
-        <div className="fixed bottom-4 right-4 flex gap-2">
+        <div className="fixed bottom-4 right-4 z-50">
           <select
             onChange={(e) => changeLanguage(e.target.value)}
             value={router.locale}
