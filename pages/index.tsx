@@ -9,11 +9,10 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Create supabase client only if environment variables are available
+const supabase = supabaseUrl && supabaseKey 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
 
 type Dream = {
   _id: string;
@@ -49,13 +48,18 @@ export default function Home() {
     // Check if user is logged in
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
-    if (token && userData) {
+    if (token && userData && supabase) {
       setUser(JSON.parse(userData));
       fetchDreams(token);
     }
   }, []);
 
   const fetchDreams = async (token: string) => {
+    if (!supabase) {
+      console.warn('Supabase client not initialized');
+      return;
+    }
+
     try {
       // Use relative URL for API requests
       const response = await fetch('/api/dreams', {
@@ -86,6 +90,11 @@ export default function Home() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabase) {
+      setError('Giriş sistemi şu anda kullanılamıyor');
+      return;
+    }
+
     setError('');
     setIsLoading(true);
 
@@ -124,6 +133,11 @@ export default function Home() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabase) {
+      setError('Kayıt sistemi şu anda kullanılamıyor');
+      return;
+    }
+
     setError('');
     setIsLoading(true);
 

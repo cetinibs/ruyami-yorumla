@@ -6,18 +6,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+// Create supabase client only if environment variables are available
+const supabase = supabaseUrl && supabaseKey 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Initialize Gemini API
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error('Missing Gemini API key');
-}
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize Gemini API only if API key is available
+const genAI = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
 
 type ApiResponse = {
   interpretation?: string;
@@ -65,6 +62,13 @@ export default async function handler(
   }
 
   try {
+    // Check if Gemini API is initialized
+    if (!genAI) {
+      return res.status(503).json({
+        error: 'Rüya yorumlama servisi şu anda kullanılamıyor'
+      });
+    }
+
     // Validate request body
     if (!req.body) {
       return res.status(400).json({
@@ -107,9 +111,9 @@ export default async function handler(
       // Sanitize interpretation
       const sanitizedInterpretation = sanitizeInterpretation(interpretation);
 
-      // Save to database if user is authenticated
+      // Save to database if user is authenticated and Supabase is available
       const token = req.headers.authorization?.replace('Bearer ', '');
-      if (token) {
+      if (token && supabase) {
         try {
           const { data: { user } } = await supabase.auth.getUser(token);
           if (user) {
