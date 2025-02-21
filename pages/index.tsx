@@ -6,13 +6,20 @@ import { FaSun, FaMoon } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let supabase = null;
 
-// Create supabase client only if environment variables are available
-const supabase = supabaseUrl && supabaseKey 
-  ? createClient(supabaseUrl, supabaseKey)
-  : null;
+// Only initialize Supabase on the client side
+if (typeof window !== 'undefined') {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (supabaseUrl && supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase initialized with URL:', supabaseUrl);
+  } else {
+    console.warn('Missing Supabase environment variables');
+  }
+}
 
 type Dream = {
   _id: string;
@@ -91,7 +98,8 @@ export default function Home() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) {
-      setError('Giriş sistemi şu anda kullanılamıyor');
+      setError('Giriş sistemi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.');
+      console.error('Supabase client not initialized. URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
       return;
     }
 
@@ -134,7 +142,8 @@ export default function Home() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) {
-      setError('Kayıt sistemi şu anda kullanılamıyor');
+      setError('Kayıt sistemi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.');
+      console.error('Supabase client not initialized. URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
       return;
     }
 
