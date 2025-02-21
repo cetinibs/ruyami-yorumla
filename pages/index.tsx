@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { FaSun, FaMoon } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 import { useTranslation } from 'next-i18next';
+import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 
 // Initialize Supabase client
 let supabase = null;
@@ -23,15 +24,14 @@ if (typeof window !== 'undefined') {
 }
 
 type Dream = {
-  _id: string;
-  dreamText: string;
+  id: string;
+  dream_text: string;
   interpretation: string;
-  createdAt: string;
+  created_at: string;
 };
 
 type User = {
-  _id: string;
-  name: string;
+  id: string;
   email: string;
 };
 
@@ -43,99 +43,95 @@ export default function Home() {
   const [interpretation, setInterpretation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [dreams, setDreams] = useState<Dream[]>([]);
   const [showLogin, setShowLogin] = useState<boolean | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [registeredEmail, setRegisteredEmail] = useState('');
-  const [registeredPassword, setRegisteredPassword] = useState('');
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData && supabase) {
-      setUser(JSON.parse(userData));
-      fetchDreams(token);
-    }
+    checkUser();
   }, []);
 
-  const fetchDreams = async (token: string) => {
-    if (!supabase) {
-      console.warn('Supabase client not initialized');
-      return;
+  const checkUser = async () => {
+    if (!supabase) return;
+    
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (user) {
+      setUser(user);
+      fetchDreams();
     }
+  };
+
+  const fetchDreams = async () => {
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from('dreams')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching dreams:', error);
+    } else {
+      setDreams(data || []);
+    }
+  };
+
+  const handleDreamSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dream.trim()) return;
+
+    setIsLoading(true);
+    setError('');
 
     try {
-      // Use relative URL for API requests
-      const response = await fetch('/api/dreams', {
-        method: 'GET',
+      const response = await fetch('/api/interpret', {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ dream: dream.trim() }),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to fetch dreams:', errorText);
-        throw new Error('Rüyalar yüklenirken bir hata oluştu');
+        throw new Error('Yorumlama sırasında bir hata oluştu');
       }
 
       const data = await response.json();
-      if (!Array.isArray(data)) {
-        throw new Error('Geçersiz veri formatı');
-      }
+      setInterpretation(data.interpretation);
 
-      setDreams(data);
     } catch (error) {
-      console.error('Error fetching dreams:', error);
-      // Don't show error to user, just log it
+      setError('Rüya yorumlanırken bir hata oluştu');
+      console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) {
-      setError('Giriş sistemi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.');
-      console.error('Supabase client not initialized. URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+      setError('Giriş sistemi şu anda kullanılamıyor');
       return;
     }
 
-    setError('');
     setIsLoading(true);
+    setError('');
 
     try {
-      console.log('Attempting login with:', { email });
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
+        email,
+        password,
       });
 
-      if (error) {
-        console.error('Login error:', error);
-        throw new Error(error.message === 'Invalid login credentials' 
-          ? 'Geçersiz email veya şifre'
-          : error.message);
-      }
+      if (error) throw error;
 
-      if (!data?.user || !data?.session) {
-        console.error('No user or session data:', data);
-        throw new Error('Giriş başarısız. Lütfen tekrar deneyin.');
-      }
-
-      console.log('Login successful:', { user: data.user });
-      localStorage.setItem('token', data.session.access_token);
       setUser(data.user);
-      setShowLogin(false);
-      await fetchDreams(data.session.access_token);
-
+      setShowLogin(null);
+      fetchDreams();
     } catch (error: any) {
-      console.error('Login error:', error);
-      setError(error.message || 'Giriş sırasında bir hata oluştu');
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -144,442 +140,219 @@ export default function Home() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) {
-      setError('Kayıt sistemi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.');
-      console.error('Supabase client not initialized. URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+      setError('Kayıt sistemi şu anda kullanılamıyor');
       return;
     }
 
-    setError('');
     setIsLoading(true);
+    setError('');
 
     try {
-      console.log('Attempting signup with:', { email });
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password: password.trim(),
+        email,
+        password,
       });
 
-      if (error) {
-        console.error('Signup error:', error);
-        if (error.message.includes('already registered')) {
-          throw new Error('Bu email adresi zaten kayıtlı');
-        }
-        throw error;
-      }
+      if (error) throw error;
 
-      if (!data?.user) {
-        console.error('No user data:', data);
-        throw new Error('Kayıt başarısız. Lütfen tekrar deneyin.');
-      }
-
-      console.log('Signup successful:', { user: data.user });
       setError('Kayıt başarılı! Lütfen email adresinize gönderilen onay linkine tıklayın.');
-      setIsLoading(false);
-
     } catch (error: any) {
-      console.error('Signup error:', error);
-      setError(error.message || 'Kayıt sırasında bir hata oluştu');
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDreamSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogout = async () => {
+    if (!supabase) return;
     
-    if (!dream.trim()) {
-      setError('Lütfen rüyanızı anlatın');
-      return;
-    }
-
-    if (dream.trim().length > 1000) {
-      setError('Rüya metni çok uzun (maksimum 1000 karakter)');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    setInterpretation('');
-
-    try {
-      const token = localStorage.getItem('token');
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      // Get the current hostname
-      const hostname = window.location.origin;
-
-      // Use absolute URL for API requests
-      const response = await fetch(`${hostname}/api/interpret`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ dream: dream.trim() }),
-      });
-
-      // First check if response is ok
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('API error response:', errorData);
-        throw new Error(
-          errorData?.error || 
-          `API error (${response.status}): ${response.statusText}`
-        );
-      }
-
-      const data = await response.json();
-      if (!data?.interpretation) {
-        throw new Error('Geçersiz API yanıtı');
-      }
-
-      setInterpretation(data.interpretation);
-      setSuccessMessage('Rüyanız başarıyla yorumlandı!');
-
-      // Fetch updated dreams list if user is logged in
-      if (token) {
-        await fetchDreams(token);
-      }
-
-    } catch (error: any) {
-      console.error('Error submitting dream:', error);
-      setError(error.message || 'Rüya yorumlanırken bir hata oluştu');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    await supabase.auth.signOut();
     setUser(null);
     setDreams([]);
   };
 
   return (
-    <div className="min-h-screen">
-      <button
-        onClick={toggleTheme}
-        className="theme-toggle"
-        aria-label="Temayı değiştir"
-        title={theme === 'light' ? 'Koyu temaya geç' : 'Açık temaya geç'}
-      >
-        {theme === 'light' ? <FaMoon size={20} /> : <FaSun size={20} />}
-      </button>
-
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-blue-900 text-white">
       <Head>
         <title>{t('title')}</title>
         <meta name="description" content={t('description')} />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-        <meta name="keywords" content="rüya yorumu, rüya tabirleri, rüya analizi, yapay zeka, AI, rüya yorumlama" />
-        
-        {/* Open Graph / Facebook */}
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://ruya-yorumla.vercel.app/" />
-        <meta property="og:title" content={t('title')} />
-        <meta property="og:description" content={t('description')} />
-        <meta property="og:image" content="https://ruya-yorumla.vercel.app/og-image.jpg" />
-
-        {/* Twitter */}
-        <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content="https://ruya-yorumla.vercel.app/" />
-        <meta property="twitter:title" content={t('title')} />
-        <meta property="twitter:description" content={t('description')} />
-        <meta property="twitter:image" content="https://ruya-yorumla.vercel.app/og-image.jpg" />
-
-        {/* Canonical URL */}
-        <link rel="canonical" href="https://ruya-yorumla.vercel.app/" />
-        
-        {/* Favicon */}
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </Head>
 
-      <div className="container mx-auto px-4 py-12">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            {t('title')}
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            {t('description')}
-          </p>
-        </div>
+      {/* Theme Toggle */}
+      <button
+        onClick={toggleTheme}
+        className="fixed top-4 right-4 p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
+        aria-label="Toggle theme"
+      >
+        {theme === 'dark' ? <FaSun className="w-6 h-6" /> : <FaMoon className="w-6 h-6" />}
+      </button>
 
-        {/* Auth Buttons */}
-        <div className="absolute top-4 right-4 flex space-x-4">
-          {user ? (
-            <div className="glass-effect rounded-full px-6 py-3 flex items-center space-x-4">
-              <span className="text-gray-700">Merhaba, {user.name}</span>
-              <button
-                onClick={handleLogout}
-                className="text-red-500 hover:text-red-600 font-medium"
-              >
-                Çıkış Yap
-              </button>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-4xl md:text-5xl font-bold text-center mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+          {t('title')}
+        </h1>
+
+        {/* Stats Section */}
+        <div className="mb-12 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl p-6 backdrop-blur-sm">
+          <h2 className="text-xl text-center mb-6 text-blue-200">
+            Rüyalarınızdaki gizli mesajları ve bilinçaltınızın sırlarını ortaya çıkarın!
+          </h2>
+          <div className="flex justify-center space-x-12">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-blue-300 mb-2">84,632</div>
+              <p className="text-blue-200">bu ay analiz edilen rüyalar</p>
             </div>
-          ) : (
-            <div className="glass-effect rounded-full p-1 flex space-x-2">
-              <button
-                onClick={() => setShowLogin(true)}
-                className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105"
-              >
-                {t('loginButton')}
-              </button>
-              <button
-                onClick={() => setShowLogin(false)}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors"
-              >
-                {t('signupButton')}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mt-8">
-          {/* Sol Menü - Geçmiş Rüyalar */}
-          {user && (
-            <div className="lg:col-span-1">
-              <div className="glass-effect rounded-2xl p-6">
-                <h2 className="text-xl font-semibold mb-6 text-gray-800">
-                  {t('pastDreams')}
-                </h2>
-                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                  {dreams.map((dream) => (
-                    <div
-                      key={dream._id}
-                      onClick={() => {
-                        setDream(dream.dreamText);
-                        setInterpretation(dream.interpretation);
-                      }}
-                      className="p-4 rounded-xl bg-white/50 hover:bg-white cursor-pointer transition-all duration-200 border border-gray-100"
-                    >
-                      <p className="text-sm text-indigo-600 mb-2">
-                        {new Date(dream.createdAt).toLocaleDateString('tr-TR')}
-                      </p>
-                      <p className="text-gray-700 line-clamp-2">{dream.dreamText}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Ana İçerik */}
-          <div className={`${user ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
-            <div className="mb-8 text-center bg-gradient-to-r from-purple-900 to-blue-900 rounded-lg p-6 text-white">
-              <h2 className="text-xl mb-6">
-                {t('discoverHiddenMessages')}
-              </h2>
-              <div className="flex justify-center space-x-12">
-                <div className="text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <svg className="w-8 h-8 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.93 4.93l4.24 4.24m10.59 10.59l-4.24-4.24m0-10.59l4.24 4.24-4.24 4.24"/>
-                    </svg>
-                    <span className="text-4xl font-bold">84,632</span>
-                  </div>
-                  <p className="text-gray-300">{t('dreamsAnalyzedThisMonth')}</p>
-                </div>
-                <div className="text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <svg className="w-8 h-8 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                    </svg>
-                    <span className="text-4xl font-bold">15,234</span>
-                  </div>
-                  <p className="text-gray-300">{t('activeDreamersThisWeek')}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <form onSubmit={handleDreamSubmit} className="space-y-6">
-                <div>
-                  <label htmlFor="dream" className="block text-xl font-semibold text-gray-100 dark:text-white mb-3">
-                    {t('dreamPlaceholder')}
-                  </label>
-                  <textarea
-                    id="dream"
-                    name="dream"
-                    rows={6}
-                    className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 resize-none"
-                    placeholder={t('dreamPlaceholder')}
-                    value={dream}
-                    onChange={(e) => setDream(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="flex justify-center">
-                  <button
-                    type="submit"
-                    disabled={isLoading || !dream.trim()}
-                    className={`px-8 py-3 text-lg font-semibold text-white rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 ${
-                      isLoading || !dream.trim()
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-                    }`}
-                  >
-                    {isLoading ? t('loading') : t('interpretButton')}
-                  </button>
-                </div>
-
-                {!user && (
-                  <p className="text-sm text-gray-300 dark:text-gray-400 mt-4 text-center">
-                    {t('notLoggedIn')}{' '}
-                    <button
-                      type="button"
-                      onClick={() => setShowLogin(true)}
-                      className="text-blue-400 hover:text-blue-300 font-medium underline"
-                    >
-                      {t('loginButton')}
-                    </button>
-                  </p>
-                )}
-              </form>
-
-              {error && (
-                <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 text-red-100 rounded-lg">
-                  {t(`error.${error}`)}
-                </div>
-              )}
-
-              {interpretation && (
-                <div className="dream-interpretation mt-8 bg-white/10 backdrop-blur-sm rounded-lg p-6 shadow-xl">
-                  <div className="dream-interpretation-section space-y-4">
-                    <h3 className="text-2xl font-semibold text-white mb-4">{t('interpretationTitle')}</h3>
-                    <div className="prose prose-lg dark:prose-invert max-w-none">
-                      {interpretation.split('\n').map((paragraph, index) => (
-                        <p key={index} className="text-gray-100 dark:text-gray-200 leading-relaxed">
-                          {paragraph}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="text-center">
+              <div className="text-4xl font-bold text-blue-300 mb-2">15,234</div>
+              <p className="text-blue-200">bu haftaki aktif rüya görenleri</p>
             </div>
           </div>
         </div>
 
-        {/* Auth Modal */}
-        {!user && showLogin !== null && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md w-full">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold mb-4 text-center">
-                  {showLogin === true ? t('loginButton') : t('signupButton')}
-                </h2>
+        {/* Main Content */}
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 shadow-xl">
+            <form onSubmit={handleDreamSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="dream" className="block text-xl font-semibold text-blue-200 mb-3">
+                  Rüyanızı Anlatın
+                </label>
+                <textarea
+                  id="dream"
+                  name="dream"
+                  rows={6}
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400 resize-none"
+                  placeholder="Rüyanızı detaylı bir şekilde anlatın..."
+                  value={dream}
+                  onChange={(e) => setDream(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="flex justify-center">
                 <button
-                  onClick={() => {
-                    setShowLogin(null);
-                    setError('');
-                    setSuccessMessage('');
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
+                  type="submit"
+                  disabled={isLoading || !dream.trim()}
+                  className={`px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 ${
+                    isLoading || !dream.trim()
+                      ? 'bg-gray-600 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                  }`}
+                >
+                  {isLoading ? 'Yorumlanıyor...' : 'Rüyamı Yorumla'}
+                </button>
+              </div>
+            </form>
+
+            {error && (
+              <div className="mt-4 p-4 bg-red-900/50 border border-red-500/50 rounded-lg text-red-200">
+                {error}
+              </div>
+            )}
+
+            {interpretation && (
+              <div className="mt-8 space-y-6">
+                <h3 className="text-2xl font-semibold text-blue-200">Rüya Yorumu</h3>
+                <div className="prose prose-lg prose-invert max-w-none">
+                  {interpretation.split('\n').map((paragraph, index) => (
+                    <p key={index} className="text-gray-200 leading-relaxed">
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Auth Section */}
+          {!user && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={() => setShowLogin(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition duration-300"
+              >
+                Giriş Yap
+              </button>
+            </div>
+          )}
+
+          {/* Auth Modal */}
+          {showLogin !== null && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-gray-900 rounded-xl p-8 max-w-md w-full">
+                <h2 className="text-2xl font-bold text-center mb-6 text-blue-200">
+                  {showLogin ? 'Giriş Yap' : 'Üye Ol'}
+                </h2>
+
+                <form onSubmit={showLogin ? handleLogin : handleSignup} className="space-y-4">
+                  <div>
+                    <input
+                      type="email"
+                      placeholder="E-posta"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="password"
+                      placeholder="Şifre"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    {showLogin ? 'Giriş Yap' : 'Üye Ol'}
+                  </button>
+                </form>
+
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={() => setShowLogin(!showLogin)}
+                    className="text-blue-400 hover:text-blue-300"
+                  >
+                    {showLogin ? 'Hesap oluştur' : 'Giriş yap'}
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setShowLogin(null)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-white"
                 >
                   ✕
                 </button>
               </div>
-
-              {successMessage && (
-                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-600">{successMessage}</p>
-                </div>
-              )}
-
-              <form onSubmit={(e) => showLogin === true ? handleLogin(e) : handleSignup(e)} className="space-y-4">
-                {!showLogin && (
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      {t('name')}
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full p-2 border rounded"
-                      required
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    {t('email')}
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-2 border rounded"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    {t('password')}
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full p-2 border rounded"
-                    required
-                  />
-                </div>
-
-                {error && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-600">{error}</p>
-                  </div>
-                )}
-
-                <button type="submit" className="btn-primary w-full">
-                  {showLogin === true ? t('loginButton') : t('signupButton')}
-                </button>
-
-                <p className="text-center text-gray-600">
-                  {showLogin === true ? (
-                    <>
-                      {t('notRegistered')}{' '}
-                      <button
-                        type="button"
-                        onClick={() => setShowLogin(false)}
-                        className="text-indigo-600 hover:underline font-medium"
-                      >
-                        {t('signupButton')}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {t('alreadyRegistered')}{' '}
-                      <button
-                        type="button"
-                        onClick={() => setShowLogin(true)}
-                        className="text-indigo-600 hover:underline font-medium"
-                      >
-                        {t('loginButton')}
-                      </button>
-                    </>
-                  )}
-                </p>
-              </form>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Footer */}
-        <div className="mt-12 text-center text-gray-500 text-sm">
-          <p>{t('footerText')}</p>
+          {/* User's Dreams */}
+          {user && dreams.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-semibold text-blue-200 mb-6">Geçmiş Rüyalarınız</h2>
+              <div className="space-y-4">
+                {dreams.map((dream) => (
+                  <div
+                    key={dream.id}
+                    className="bg-white/10 backdrop-blur-sm rounded-lg p-4 hover:bg-white/20 transition-colors"
+                  >
+                    <p className="text-gray-200">{dream.dream_text}</p>
+                    <p className="mt-2 text-blue-300">{dream.interpretation}</p>
+                    <p className="mt-2 text-sm text-gray-400">
+                      {new Date(dream.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
