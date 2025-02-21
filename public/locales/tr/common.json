@@ -1,11 +1,33 @@
 {
-  "title": "Rüya Yorumlayıcı",
-  "subtitle": "Rüyalarınızın potansiyelini keşfedin!",
-  "placeholder": "Lütfen rüyanızı anlatın: Ne gördünüz? Hangi nesneler ve semboller bulunuyordu? Nasıl hissettiniz?",
-  "button": "Gönder",
-  "loading": "Yorumlanıyor...",
-  "stats": {
-    "dreams": "Yorumlanan Rüya",
-    "users": "Toplam Kullanıcı"
+  "title": "Rüya Yorumla",
+  "description": "Yapay zeka destekli rüya yorumlama uygulaması",
+  "dreamPlaceholder": "Rüyanızı buraya yazın...",
+  "interpretButton": "Yorumla",
+  "loginButton": "Giriş Yap",
+  "signupButton": "Kayıt Ol",
+  "emailPlaceholder": "E-posta",
+  "passwordPlaceholder": "Şifre",
+  "loading": "Yükleniyor...",
+  "error": {
+    "login": "Giriş sırasında bir hata oluştu",
+    "signup": "Kayıt sırasında bir hata oluştu",
+    "invalidCredentials": "Geçersiz e-posta veya şifre",
+    "emailExists": "Bu e-posta adresi zaten kayıtlı",
+    "interpretation": "Rüya yorumlanırken bir hata oluştu"
+  },
+  "success": {
+    "signup": "Kayıt başarılı! Lütfen e-posta adresinize gönderilen onay linkine tıklayın.",
+    "interpretation": "Rüyanız başarıyla yorumlandı"
+  },
+  "nav": {
+    "home": "Ana Sayfa",
+    "myDreams": "Rüyalarım",
+    "settings": "Ayarlar",
+    "logout": "Çıkış Yap"
+  },
+  "language": "Dil",
+  "theme": {
+    "light": "Aydınlık",
+    "dark": "Karanlık"
   }
 }

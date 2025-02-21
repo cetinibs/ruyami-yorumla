@@ -1,0 +1,33 @@
+{
+  "title": "Traumdeuter",
+  "description": "KI-gestützte Traumdeutungs-App",
+  "dreamPlaceholder": "Schreiben Sie Ihren Traum hier...",
+  "interpretButton": "Deuten",
+  "loginButton": "Anmelden",
+  "signupButton": "Registrieren",
+  "emailPlaceholder": "E-Mail",
+  "passwordPlaceholder": "Passwort",
+  "loading": "Lädt...",
+  "error": {
+    "login": "Beim Anmelden ist ein Fehler aufgetreten",
+    "signup": "Bei der Registrierung ist ein Fehler aufgetreten",
+    "invalidCredentials": "Ungültige E-Mail oder Passwort",
+    "emailExists": "Diese E-Mail ist bereits registriert",
+    "interpretation": "Bei der Traumdeutung ist ein Fehler aufgetreten"
+  },
+  "success": {
+    "signup": "Registrierung erfolgreich! Bitte klicken Sie auf den Bestätigungslink in Ihrer E-Mail.",
+    "interpretation": "Ihr Traum wurde erfolgreich gedeutet"
+  },
+  "nav": {
+    "home": "Startseite",
+    "myDreams": "Meine Träume",
+    "settings": "Einstellungen",
+    "logout": "Abmelden"
+  },
+  "language": "Sprache",
+  "theme": {
+    "light": "Hell",
+    "dark": "Dunkel"
+  }
+}

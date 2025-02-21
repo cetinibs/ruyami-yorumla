@@ -1,11 +1,33 @@
 {
   "title": "Dream Interpreter",
-  "subtitle": "Discover the potential of your dreams!",
-  "placeholder": "Please describe your dream: What did you see? What objects and symbols were present? How did you feel?",
-  "button": "Submit",
-  "loading": "Interpreting...",
-  "stats": {
-    "dreams": "Interpreted Dreams",
-    "users": "Total Users"
+  "description": "AI-powered dream interpretation app",
+  "dreamPlaceholder": "Write your dream here...",
+  "interpretButton": "Interpret",
+  "loginButton": "Login",
+  "signupButton": "Sign Up",
+  "emailPlaceholder": "Email",
+  "passwordPlaceholder": "Password",
+  "loading": "Loading...",
+  "error": {
+    "login": "An error occurred during login",
+    "signup": "An error occurred during signup",
+    "invalidCredentials": "Invalid email or password",
+    "emailExists": "This email is already registered",
+    "interpretation": "An error occurred while interpreting the dream"
+  },
+  "success": {
+    "signup": "Registration successful! Please click the confirmation link sent to your email.",
+    "interpretation": "Your dream has been successfully interpreted"
+  },
+  "nav": {
+    "home": "Home",
+    "myDreams": "My Dreams",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "language": "Language",
+  "theme": {
+    "light": "Light",
+    "dark": "Dark"
   }
 }

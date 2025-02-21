@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useTheme } from '../contexts/ThemeContext';
 import { FaSun, FaMoon } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
+import { useTranslation } from 'next-i18next';
 
 // Initialize Supabase client
 let supabase = null;
@@ -37,6 +38,7 @@ type User = {
 export default function Home() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useTranslation('common');
   const [dream, setDream] = useState('');
   const [interpretation, setInterpretation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -269,23 +271,23 @@ export default function Home() {
       </button>
 
       <Head>
-        <title>Rüyamı Yorumla - AI Destekli Rüya Yorumlama</title>
-        <meta name="description" content="Yapay zeka destekli rüya yorumlama uygulaması ile rüyalarınızın anlamını keşfedin. Bilinçaltınızın mesajlarını çözümleyin." />
+        <title>{t('title')}</title>
+        <meta name="description" content={t('description')} />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
         <meta name="keywords" content="rüya yorumu, rüya tabirleri, rüya analizi, yapay zeka, AI, rüya yorumlama" />
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://ruya-yorumla.vercel.app/" />
-        <meta property="og:title" content="Rüyamı Yorumla - AI Destekli Rüya Yorumlama" />
-        <meta property="og:description" content="Yapay zeka destekli rüya yorumlama uygulaması ile rüyalarınızın anlamını keşfedin." />
+        <meta property="og:title" content={t('title')} />
+        <meta property="og:description" content={t('description')} />
         <meta property="og:image" content="https://ruya-yorumla.vercel.app/og-image.jpg" />
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content="https://ruya-yorumla.vercel.app/" />
-        <meta property="twitter:title" content="Rüyamı Yorumla - AI Destekli Rüya Yorumlama" />
-        <meta property="twitter:description" content="Yapay zeka destekli rüya yorumlama uygulaması ile rüyalarınızın anlamını keşfedin." />
+        <meta property="twitter:title" content={t('title')} />
+        <meta property="twitter:description" content={t('description')} />
         <meta property="twitter:image" content="https://ruya-yorumla.vercel.app/og-image.jpg" />
 
         {/* Canonical URL */}
@@ -300,10 +302,10 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Rüyamı Yorumla
+            {t('title')}
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Yapay zeka teknolojisi ile rüyalarınızın gizli anlamlarını keşfedin
+            {t('description')}
           </p>
         </div>
 
@@ -325,13 +327,13 @@ export default function Home() {
                 onClick={() => setShowLogin(true)}
                 className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105"
               >
-                Giriş Yap
+                {t('loginButton')}
               </button>
               <button
                 onClick={() => setShowLogin(false)}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors"
               >
-                Üye Ol
+                {t('signupButton')}
               </button>
             </div>
           )}
@@ -342,7 +344,9 @@ export default function Home() {
           {user && (
             <div className="lg:col-span-1">
               <div className="glass-effect rounded-2xl p-6">
-                <h2 className="text-xl font-semibold mb-6 text-gray-800">Geçmiş Rüyalarınız</h2>
+                <h2 className="text-xl font-semibold mb-6 text-gray-800">
+                  {t('pastDreams')}
+                </h2>
                 <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                   {dreams.map((dream) => (
                     <div
@@ -367,7 +371,9 @@ export default function Home() {
           {/* Ana İçerik */}
           <div className={`${user ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
             <div className="mb-8 text-center bg-gradient-to-r from-purple-900 to-blue-900 rounded-lg p-6 text-white">
-              <h2 className="text-xl mb-6">Rüyalarınızdaki gizli mesajları ve bilinçaltınızın sırlarını ortaya çıkarın!</h2>
+              <h2 className="text-xl mb-6">
+                {t('discoverHiddenMessages')}
+              </h2>
               <div className="flex justify-center space-x-12">
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-2">
@@ -376,7 +382,7 @@ export default function Home() {
                     </svg>
                     <span className="text-4xl font-bold">84,632</span>
                   </div>
-                  <p className="text-gray-300">bu ay analiz edilen rüyalar</p>
+                  <p className="text-gray-300">{t('dreamsAnalyzedThisMonth')}</p>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-2">
@@ -385,7 +391,7 @@ export default function Home() {
                     </svg>
                     <span className="text-4xl font-bold">15,234</span>
                   </div>
-                  <p className="text-gray-300">bu haftaki aktif rüya görenleri</p>
+                  <p className="text-gray-300">{t('activeDreamersThisWeek')}</p>
                 </div>
               </div>
             </div>
@@ -394,14 +400,14 @@ export default function Home() {
               <form onSubmit={handleDreamSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="dream" className="block text-lg font-medium text-gray-700 mb-2">
-                    Rüyanızı Anlatın
+                    {t('dreamPlaceholder')}
                   </label>
                   <textarea
                     id="dream"
                     name="dream"
                     rows={6}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Rüyanızı detaylı bir şekilde anlatın..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white resize-none"
+                    placeholder={t('dreamPlaceholder')}
                     value={dream}
                     onChange={(e) => setDream(e.target.value)}
                     required
@@ -416,34 +422,27 @@ export default function Home() {
                       isLoading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
                     }`}
                   >
-                    {isLoading ? 'Yorumlanıyor...' : 'Rüyamı Yorumla'}
+                    {isLoading ? t('loading') : t('interpretButton')}
                   </button>
                 </div>
 
                 {!user && (
                   <p className="text-sm text-gray-600 mt-2">
-                    Not: Rüya yorumlarınızı kaydetmek ve geçmiş yorumlarınızı görmek için{' '}
-                    <button
-                      type="button"
-                      onClick={() => setShowLogin(true)}
-                      className="text-indigo-600 hover:text-indigo-800 font-medium"
-                    >
-                      üye olun
-                    </button>
+                    {t('notLoggedIn')}
                   </p>
                 )}
               </form>
 
               {error && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-700">{error}</p>
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-100 rounded-lg">
+                  {t(`error.${error}`)}
                 </div>
               )}
 
               {interpretation && (
                 <div className="dream-interpretation mt-8">
                   <div className="dream-interpretation-section">
-                    <h3 className="dream-interpretation-title">Rüyanızın Genel Yorumu</h3>
+                    <h3 className="dream-interpretation-title">{t('interpretationTitle')}</h3>
                     <p className="dream-interpretation-content">{interpretation}</p>
                   </div>
                 </div>
@@ -454,11 +453,11 @@ export default function Home() {
 
         {/* Auth Modal */}
         {!user && showLogin !== null && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md w-full">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold text-gray-800">
-                  {showLogin ? 'Giriş Yap' : 'Üye Ol'}
+                <h2 className="text-2xl font-bold mb-4 text-center">
+                  {showLogin === true ? t('loginButton') : t('signupButton')}
                 </h2>
                 <button
                   onClick={() => {
@@ -478,18 +477,18 @@ export default function Home() {
                 </div>
               )}
 
-              <form onSubmit={(e) => showLogin ? handleLogin(e) : handleSignup(e)} className="space-y-4">
+              <form onSubmit={(e) => showLogin === true ? handleLogin(e) : handleSignup(e)} className="space-y-4">
                 {!showLogin && (
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      İsim
+                      {t('name')}
                     </label>
                     <input
                       type="text"
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="input-primary"
+                      className="w-full p-2 border rounded"
                       required
                     />
                   </div>
@@ -497,28 +496,28 @@ export default function Home() {
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    Email
+                    {t('email')}
                   </label>
                   <input
                     type="email"
                     id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="input-primary"
+                    className="w-full p-2 border rounded"
                     required
                   />
                 </div>
 
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    Şifre
+                    {t('password')}
                   </label>
                   <input
                     type="password"
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="input-primary"
+                    className="w-full p-2 border rounded"
                     required
                   />
                 </div>
@@ -530,30 +529,30 @@ export default function Home() {
                 )}
 
                 <button type="submit" className="btn-primary w-full">
-                  {showLogin ? 'Giriş Yap' : 'Üye Ol'}
+                  {showLogin === true ? t('loginButton') : t('signupButton')}
                 </button>
 
                 <p className="text-center text-gray-600">
-                  {showLogin ? (
+                  {showLogin === true ? (
                     <>
-                      Hesabınız yok mu?{' '}
+                      {t('notRegistered')}{' '}
                       <button
                         type="button"
                         onClick={() => setShowLogin(false)}
                         className="text-indigo-600 hover:underline font-medium"
                       >
-                        Üye Olun
+                        {t('signupButton')}
                       </button>
                     </>
                   ) : (
                     <>
-                      Zaten üye misiniz?{' '}
+                      {t('alreadyRegistered')}{' '}
                       <button
                         type="button"
                         onClick={() => setShowLogin(true)}
                         className="text-indigo-600 hover:underline font-medium"
                       >
-                        Giriş Yapın
+                        {t('loginButton')}
                       </button>
                     </>
                   )}
@@ -565,10 +564,17 @@ export default function Home() {
 
         {/* Footer */}
         <div className="mt-12 text-center text-gray-500 text-sm">
-          <p>Bu uygulama yapay zeka teknolojisi kullanarak rüyalarınızı yorumlar.</p>
-          <p>Sonuçlar sadece bilgilendirme amaçlıdır.</p>
+          <p>{t('footerText')}</p>
         </div>
       </div>
     </div>
   );
+}
+
+export async function getStaticProps({ locale }: { locale: string }) {
+  return {
+    props: {
+      ...(await serverSideTranslations(locale, ['common'])),
+    },
+  };
 }

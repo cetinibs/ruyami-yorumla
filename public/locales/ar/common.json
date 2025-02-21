@@ -1,0 +1,33 @@
+{
+  "title": "مفسر الأحلام",
+  "description": "تطبيق تفسير الأحلام بالذكاء الاصطناعي",
+  "dreamPlaceholder": "اكتب حلمك هنا...",
+  "interpretButton": "تفسير",
+  "loginButton": "تسجيل الدخول",
+  "signupButton": "إنشاء حساب",
+  "emailPlaceholder": "البريد الإلكتروني",
+  "passwordPlaceholder": "كلمة المرور",
+  "loading": "جاري التحميل...",
+  "error": {
+    "login": "حدث خطأ أثناء تسجيل الدخول",
+    "signup": "حدث خطأ أثناء التسجيل",
+    "invalidCredentials": "بريد إلكتروني أو كلمة مرور غير صحيحة",
+    "emailExists": "هذا البريد الإلكتروني مسجل بالفعل",
+    "interpretation": "حدث خطأ أثناء تفسير الحلم"
+  },
+  "success": {
+    "signup": "تم التسجيل بنجاح! يرجى النقر على رابط التأكيد المرسل إلى بريدك الإلكتروني.",
+    "interpretation": "تم تفسير حلمك بنجاح"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "myDreams": "أحلامي",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج"
+  },
+  "language": "اللغة",
+  "theme": {
+    "light": "فاتح",
+    "dark": "داكن"
+  }
+}
