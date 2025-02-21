@@ -399,14 +399,14 @@ export default function Home() {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
               <form onSubmit={handleDreamSubmit} className="space-y-6">
                 <div>
-                  <label htmlFor="dream" className="block text-lg font-medium text-gray-700 mb-2">
+                  <label htmlFor="dream" className="block text-xl font-semibold text-gray-100 dark:text-white mb-3">
                     {t('dreamPlaceholder')}
                   </label>
                   <textarea
                     id="dream"
                     name="dream"
                     rows={6}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white resize-none"
+                    className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 resize-none"
                     placeholder={t('dreamPlaceholder')}
                     value={dream}
                     onChange={(e) => setDream(e.target.value)}
@@ -414,12 +414,14 @@ export default function Home() {
                   />
                 </div>
 
-                <div>
+                <div className="flex justify-center">
                   <button
                     type="submit"
-                    disabled={isLoading}
-                    className={`w-full py-3 px-4 rounded-lg text-white font-medium ${
-                      isLoading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
+                    disabled={isLoading || !dream.trim()}
+                    className={`px-8 py-3 text-lg font-semibold text-white rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 ${
+                      isLoading || !dream.trim()
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
                     }`}
                   >
                     {isLoading ? t('loading') : t('interpretButton')}
@@ -427,23 +429,36 @@ export default function Home() {
                 </div>
 
                 {!user && (
-                  <p className="text-sm text-gray-600 mt-2">
-                    {t('notLoggedIn')}
+                  <p className="text-sm text-gray-300 dark:text-gray-400 mt-4 text-center">
+                    {t('notLoggedIn')}{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowLogin(true)}
+                      className="text-blue-400 hover:text-blue-300 font-medium underline"
+                    >
+                      {t('loginButton')}
+                    </button>
                   </p>
                 )}
               </form>
 
               {error && (
-                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-100 rounded-lg">
+                <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 text-red-100 rounded-lg">
                   {t(`error.${error}`)}
                 </div>
               )}
 
               {interpretation && (
-                <div className="dream-interpretation mt-8">
-                  <div className="dream-interpretation-section">
-                    <h3 className="dream-interpretation-title">{t('interpretationTitle')}</h3>
-                    <p className="dream-interpretation-content">{interpretation}</p>
+                <div className="dream-interpretation mt-8 bg-white/10 backdrop-blur-sm rounded-lg p-6 shadow-xl">
+                  <div className="dream-interpretation-section space-y-4">
+                    <h3 className="text-2xl font-semibold text-white mb-4">{t('interpretationTitle')}</h3>
+                    <div className="prose prose-lg dark:prose-invert max-w-none">
+                      {interpretation.split('\n').map((paragraph, index) => (
+                        <p key={index} className="text-gray-100 dark:text-gray-200 leading-relaxed">
+                          {paragraph}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
