@@ -28,6 +28,7 @@ type Dream = {
   dream_text: string;
   interpretation: string;
   created_at: string;
+  ai_model?: string;
 };
 
 type User = {
@@ -48,6 +49,7 @@ export default function Home() {
   const [showLogin, setShowLogin] = useState<boolean | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [aiModel, setAiModel] = useState('openai'); // Default to OpenAI model
 
   useEffect(() => {
     checkUser();
@@ -86,7 +88,30 @@ export default function Home() {
     setError('');
 
     try {
-      const response = await fetch('/api/interpret', {
+      // Use the selected AI model endpoint
+      let endpoint;
+      switch (aiModel) {
+        case 'deepseek':
+          endpoint = '/api/interpret-deepseek';
+          break;
+        case 'gemini':
+          endpoint = '/api/interpret';
+          break;
+        case 'combined':
+        default:
+          endpoint = '/api/interpret-combined';
+          break;
+        case 'aiml':
+          endpoint = '/api/interpret-aiml';
+          break;
+        case 'openai':
+          endpoint = '/api/interpret-openai';
+          break;
+      }
+      
+      console.log(`Calling API endpoint: ${endpoint}`);
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,16 +119,21 @@ export default function Home() {
         body: JSON.stringify({ dream: dream.trim() }),
       });
 
+      console.log(`API response status: ${response.status}`);
+      
       if (!response.ok) {
-        throw new Error('Yorumlama sırasında bir hata oluştu');
+        const errorData = await response.json();
+        console.error('API error response:', errorData);
+        throw new Error(errorData.error || 'Yorumlama sırasında bir hata oluştu');
       }
 
       const data = await response.json();
+      console.log('API response data received');
       setInterpretation(data.interpretation);
 
     } catch (error) {
-      setError('Rüya yorumlanırken bir hata oluştu');
-      console.error('Error:', error);
+      console.error('Error in handleDreamSubmit:', error);
+      setError(error.message || 'Rüya yorumlanırken bir hata oluştu');
     } finally {
       setIsLoading(false);
     }
@@ -229,6 +259,26 @@ export default function Home() {
                 />
               </div>
 
+              {/* AI Model Selector */}
+              <div className="mb-4">
+                <label htmlFor="aiModel" className="block text-sm font-medium text-gray-700 mb-1">
+                  AI Modeli
+                </label>
+                <select
+                  id="aiModel"
+                  value={aiModel}
+                  onChange={(e) => setAiModel(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="aiml">AIML</option>
+                  <option value="gemini">Gemini</option>
+                  {/* DeepSeek option disabled due to insufficient balance */}
+                  {/* <option value="deepseek">DeepSeek</option> */}
+                  {/* <option value="combined">DeepSeek + Gemini (Karşılaştırmalı)</option> */}
+                  <option value="openai">OpenAI</option>
+                </select>
+              </div>
+
               <div className="flex justify-center">
                 <button
                   type="submit"
@@ -264,14 +314,23 @@ export default function Home() {
             )}
 
             {interpretation && (
-              <div className="mt-8 space-y-6">
-                <h3 className="text-2xl font-semibold text-blue-200">{t('interpretationTitle')}</h3>
-                <div className="prose prose-lg prose-invert max-w-none">
-                  {interpretation.split('\n').map((paragraph, index) => (
-                    <p key={index} className="text-gray-200 leading-relaxed">
-                      {paragraph}
-                    </p>
-                  ))}
+              <div className="max-w-2xl mx-auto mb-12 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl p-6 backdrop-blur-sm">
+                <h2 className="text-2xl font-semibold mb-4 text-blue-200">
+                  Rüya Yorumu
+                </h2>
+                <div className="bg-gray-800/70 rounded-lg p-4 text-white">
+                  <div 
+                    className="interpretation-container prose prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ 
+                      __html: interpretation
+                        .replace(/## DeepSeek Yorumu:/g, '<div class="deepseek-section"><h2>DeepSeek Yorumu:</h2>')
+                        .replace(/## Gemini Yorumu:/g, '</div><div class="gemini-section"><h2>Gemini Yorumu:</h2>')
+                        .replace(/(\d+\.\s.*?)(?=\n)/g, '<h3>$1</h3>')
+                        .replace(/\n\n/g, '</p><p>')
+                        .replace(/\n/g, '<br>')
+                        + '</div>'
+                    }} 
+                  />
                 </div>
               </div>
             )}

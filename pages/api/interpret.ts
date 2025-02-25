@@ -92,7 +92,7 @@ export default async function handler(
 
     try {
       // Create Gemini model and prompt
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
       
       const prompt = `Aşağıdaki rüyayı Türkçe olarak detaylı bir şekilde yorumla. 
       Rüya içeriği: "${dream.trim()}"
